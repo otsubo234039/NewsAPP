@@ -1,0 +1,12 @@
+{
+  "name": "newsapp",
+  "version": "0.1.0",
+  "description": "Minimal NewsAPP scaffold",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
