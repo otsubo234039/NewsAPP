@@ -1,0 +1,23 @@
+{
+  // 学習に役立つ候補は有効にし、侵襲的なインライン補完のみ無効化する
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": false,
+    "strings": true
+  },
+
+  // トリガー文字での補完ポップアップを有効化（Enter やドット入力で候補を出す）
+  "editor.suggestOnTriggerCharacters": true,
+
+  // インライン補完は好みに応じて無効のまま（要らない場合）
+  "editor.inlineSuggest.enabled": false,
+
+  // 引数ヒント（パラメータ情報）を有効にして学習につなげる
+  "editor.parameterHints.enabled": true,
+
+  // 補完ウィジェットのアイコン表示を有効（視認性向上）
+  "editor.suggest.showIcons": true,
+
+  // GitHub Copilot のインライン提案は引き続き無効（Copilot 自体は拡張の提案パネルで動く）
+  "github.copilot.inlineSuggest.enable": false
+}
