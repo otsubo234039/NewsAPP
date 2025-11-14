@@ -5,3 +5,5 @@ dist/
 coverage/
 *.local
 backend/vendor/bundle/
+frontend/.next/
+frontend/package-lock.json
