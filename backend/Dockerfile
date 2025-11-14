@@ -14,4 +14,9 @@ RUN gem install bundler && bundle config set --local path 'vendor/bundle' && bun
 COPY . ./
 
 EXPOSE 3000
-CMD ["bash", "-lc", "bundle install || true; bin/rails db:create db:migrate || true; bin/rails server -b 0.0.0.0 -p 3000"]
+# Wait for DB TCP port, run migrations, ensure no stale PID, then start server
+CMD ["bash", "-lc", "bundle install || true; \
+    until (echo > /dev/tcp/${DATABASE_HOST:-db}/${DATABASE_PORT:-5432}) >/dev/null 2>&1; do echo 'waiting for db'; sleep 1; done; \
+    bin/rails db:create db:migrate || true; \
+    rm -f tmp/pids/server.pid; \
+    exec bin/rails server -b 0.0.0.0 -p 3000"]

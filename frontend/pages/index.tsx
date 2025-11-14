@@ -4,10 +4,15 @@ type ApiResp = { status: string; message: string }
 
 export default function Home({ msg }: { msg: ApiResp | null }) {
   return (
-    <main style={{ padding: 24, fontFamily: 'system-ui, sans-serif' }}>
-      <h1>NewsAPP Frontend (Next.js + TypeScript)</h1>
-      <h2>Backend response</h2>
-      <pre>{msg ? JSON.stringify(msg, null, 2) : 'no data'}</pre>
+    <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#ffffff', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ textAlign: 'center' }}>
+        <h1 style={{ margin: 0, fontSize: '28px' }}>テスト表示 — NewsAPP フロントエンド</h1>
+        <p style={{ color: '#333', marginTop: 12 }}>このテキストが見えればレンダリング成功です。</p>
+        <div style={{ marginTop: 18, textAlign: 'left' }}>
+          <h3 style={{ marginBottom: 6 }}>バックエンド応答（デバッグ用）</h3>
+          <pre style={{ background: '#f6f6f6', padding: 12 }}>{msg ? JSON.stringify(msg, null, 2) : 'no data'}</pre>
+        </div>
+      </div>
     </main>
   )
 }

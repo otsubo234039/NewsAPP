@@ -1,12 +1,12 @@
 {
-  "name": "newsapp",
+  "name": "newsapp-root",
   "version": "0.1.0",
-  "description": "Minimal NewsAPP scaffold",
-  "main": "app.js",
+  "private": true,
   "scripts": {
-    "start": "node app.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2"
+    "dev": "npm --prefix frontend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix frontend run start"
   }
 }
+
