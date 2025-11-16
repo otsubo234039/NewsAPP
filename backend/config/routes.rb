@@ -10,4 +10,8 @@ Rails.application.routes.draw do
   # RSS / feeds endpoint
   get 'api/articles', to: 'feeds#index'
   get 'api/ping', to: 'feeds#ping'
+  namespace :api do
+    resources :users, only: [:create]
+    resource :sessions, only: [:create, :destroy]
+  end
 end

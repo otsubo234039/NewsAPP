@@ -21,8 +21,15 @@ class FeedsController < ApplicationController
           link: a[:link].to_s,
           summary: a[:summary].to_s,
           published: (a[:published].respond_to?(:iso8601) ? a[:published].iso8601 : a[:published].to_s),
-          source: a[:source].to_s
+          source: a[:source].to_s,
+          lang: (a[:lang] || 'und')
         }
+      end
+
+      # optional filter: only_lang=ja to return only Japanese articles
+      if params[:only_lang].present?
+        filter = params[:only_lang].to_s
+        safe_articles = safe_articles.select { |art| art[:lang].to_s == filter }
       end
 
       # Optional translation: accept `lang` (single) or `langs` (comma-separated)
