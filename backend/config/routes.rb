@@ -9,4 +9,5 @@ Rails.application.routes.draw do
   root to: 'home#index'
   # RSS / feeds endpoint
   get 'api/articles', to: 'feeds#index'
+  get 'api/ping', to: 'feeds#ping'
 end

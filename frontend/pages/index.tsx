@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { GetServerSideProps } from 'next';
 
 
 interface Article {
-  id: string;
+  id?: string;
   title: string;
-  summary: string;
-  imageUrl: string;
-  category: string;
+  summary?: string;
+  imageUrl?: string;
+  category?: string;
+  link?: string;
+  published?: string | number;
+  source?: string;
 }
 
 interface ArticleCardProps {
@@ -14,55 +18,40 @@ interface ArticleCardProps {
 }
 
 const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
+  const published = article.published ? new Date(article.published).toLocaleString() : null;
   return (
     <div className="article-card">
-      <img src={article.imageUrl} alt={article.title} className="article-image" />
+      {article.imageUrl ? (
+        <img src={article.imageUrl} alt={article.title} className="article-image" />
+      ) : null}
       <div className="article-content">
-        <span className="article-category">{article.category}</span>
+        {article.source ? <span className="article-source">{article.source}</span> : null}
+        {published ? <span className="article-published">{published}</span> : null}
         <h3 className="article-title">{article.title}</h3>
-        <p className="article-summary">{article.summary}</p>
+        {article.summary ? <p className="article-summary">{article.summary}</p> : null}
+        {article.link ? (
+          <p className="article-link">
+            <a href={article.link} target="_blank" rel="noreferrer">記事を開く</a>
+          </p>
+        ) : null}
       </div>
     </div>
   );
 };
 
-const HomeScreen: React.FC = () => {
-  const [allArticles, setAllArticles] = useState<Article[]>([]);
+type Props = {
+  articles: Article[];
+  fallback?: boolean;
+  error?: string | null;
+};
+
+const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback = false, error }) => {
+  const [allArticles, setAllArticles] = useState<Article[]>(initialArticles);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchArticles = async () => {
-      try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        const dummyData: Article[] = [
-          { id: '1', title: 'TypeScript 5.5 リリース！', summary: '新しい型推論の機能が追加されました。', imageUrl: 'https://via.placeholder.com/300x150?text=TypeScript', category: 'テクノロジー' },
-          { id: '2', title: '大阪で新しいカフェがオープン', summary: '梅田駅近くに、こだわりのコーヒー豆を使用したカフェが開店しました。', imageUrl: 'https://via.placeholder.com/300x150?text=Cafe', category: 'ライフスタイル' },
-          { id: '3', title: '週末の天気予報', summary: '土曜日は晴れますが、日曜日は全国的に雨の予報です。', imageUrl: 'https://via.placeholder.com/300x150?text=Weather', category: '天気' },
-          { id: '4', title: 'スポーツ速報：決勝戦の結果', summary: '昨夜行われた決勝戦は、劇的な逆転勝利となりました。', imageUrl: 'https://via.placeholder.com/300x150?text=Sports', category: 'スポーツ' },
-        ];
-        
-        setAllArticles(dummyData);
-        
-      } catch (err) {
-        setError('データの取得に失敗しました。');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchArticles();
-  }, []); 
 
   const filteredArticles = allArticles.filter(article =>
     article.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  if (isLoading) {
-    return <div className="loading-message">読み込み中...</div>;
-  }
 
   if (error) {
     return <div className="error-message">{error}</div>;
@@ -70,9 +59,12 @@ const HomeScreen: React.FC = () => {
 
   return (
     <div className="home-screen">
+      {fallback ? (
+        <div style={{ textAlign: 'center', padding: '8px', background: '#fff3cd', color: '#856404' }}>開発用フォールバック記事を表示しています</div>
+      ) : null}
       <header className="home-header">
         <h1>今日のニュース</h1>
-        
+
         <div className="search-bar-container">
           <input
             type="text"
@@ -83,11 +75,11 @@ const HomeScreen: React.FC = () => {
           />
         </div>
       </header>
-      
+
       <main className="article-list-container">
         {filteredArticles.length > 0 ? (
-          filteredArticles.map(article => (
-            <ArticleCard key={article.id} article={article} />
+          filteredArticles.map((article, idx) => (
+            <ArticleCard key={article.id || idx} article={article} />
           ))
         ) : (
           <p className="no-results-message">該当する記事が見つかりません。</p>
@@ -98,3 +90,34 @@ const HomeScreen: React.FC = () => {
 };
 
 export default HomeScreen;
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  // Try internal Docker Compose hostname first (stable within containers).
+  const primary = 'http://backend:3000';
+  const envFallback = process.env.SERVER_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+  async function fetchArticles(base: string) {
+    const res = await fetch(`${base}/api/articles?category=it`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json();
+  }
+
+  try {
+    let json;
+    try {
+      json = await fetchArticles(primary);
+    } catch (primaryErr) {
+      // primary failed, try env-configured URL
+      try {
+        json = await fetchArticles(envFallback);
+      } catch (envErr) {
+        throw new Error(`primary: ${primaryErr.message}; fallback: ${envErr.message}`);
+      }
+    }
+    const articles = Array.isArray(json.articles) ? json.articles : [];
+    const fallback = !!json.fallback;
+    return { props: { articles, fallback } };
+  } catch (e: any) {
+    return { props: { articles: [], error: e.message || 'データ取得中にエラーが発生しました' } };
+  }
+};
