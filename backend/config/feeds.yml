@@ -13,7 +13,11 @@ feeds:
         url: http://feeds.arstechnica.com/arstechnica/index/
       - title: Wired
         url: https://www.wired.com/feed/rss
-      - title: ITmedia
-        url: https://www.itmedia.co.jp/rss/
+      - title: ITmedia (総合)
+        url: https://rss.itmedia.co.jp/rss/2.0/itmedia_all.xml
+      - title: ASCII.jp (トップ)
+        url: https://ascii.jp/rss.xml
       - title: ZDNet Japan
-        url: https://japan.zdnet.com/rss/
+        url: http://feeds.japan.zdnet.com/zdnet/rss
+      - title: CNET Japan
+        url: http://feed.japan.cnet.com/rss/index.rdf

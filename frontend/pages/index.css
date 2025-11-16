@@ -78,6 +78,29 @@ body {
   line-height: 1.4;
 }
 
+.article-source {
+  display: inline-block;
+  font-size: 0.75rem;
+  color: #777;
+  margin-right: 8px;
+}
+
+.article-published {
+  display: inline-block;
+  font-size: 0.75rem;
+  color: #999;
+}
+
+.article-link a {
+  color: #1a73e8;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.article-link a:hover {
+  text-decoration: underline;
+}
+
 .search-bar-container {
   margin-top: 15px;
   width: 100%;
