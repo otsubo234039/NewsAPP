@@ -27,7 +27,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: http://localhost:3001
     ports:
-      - "3000:3000"
+      - "3002:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3001
       SERVER_API_URL: http://backend:3000

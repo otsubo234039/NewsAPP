@@ -9,6 +9,18 @@ type Article = {
 };
 
 const ITNewsPage: React.FC = () => {
+  function cleanSummary(value?: string) {
+    if (!value) return '';
+    let out = value.replace(/\u200B|\u200C|\u200D|\uFEFF|\u00AD/g, '');
+    out = out.replace(/\r?\n/g, ' ');
+    out = out.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+    out = out.replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(Number(dec)));
+    out = out.replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+    // remove all HTML tags (images, paragraphs, etc.)
+    out = out.replace(/<[^>]*>/g, ' ');
+    out = out.replace(/[ \t\f\v\u00A0]+/g, ' ');
+    return out.trim();
+  }
   const [articles, setArticles] = React.useState<Article[] | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -49,7 +61,7 @@ const ITNewsPage: React.FC = () => {
             <li key={i} style={{ marginBottom: 14 }}>
               <a href={a.link} target="_blank" rel="noopener noreferrer">{a.title}</a>
               <div style={{ fontSize: 12, color: '#666' }}>{a.source} — {a.published ? new Date(a.published).toLocaleString() : ''}</div>
-              {a.summary && <div dangerouslySetInnerHTML={{ __html: a.summary }} />}
+              {a.summary && <div>{cleanSummary(a.summary)}</div>}
             </li>
           ))}
         </ul>

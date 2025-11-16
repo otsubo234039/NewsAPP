@@ -66,6 +66,13 @@ class RssFeedService
                   published: (item.respond_to?(:pubDate) && item.pubDate) || (item.respond_to?(:published) && item.published) || nil,
                   source: s['title']
                 }
+                # language detection: simple heuristic for Japanese characters
+                text_for_lang = (normalized[:title].to_s + " " + normalized[:summary].to_s)
+                if text_for_lang.match(/[\p{Han}\p{Hiragana}\p{Katakana}]/)
+                  normalized[:lang] = 'ja'
+                else
+                  normalized[:lang] = 'en'
+                end
                 articles << normalized
                 count += 1
                 Rails.logger.debug("RssFeedService: normalized item from #{s['url']} -> title=#{normalized[:title].inspect} link=#{normalized[:link].inspect} published=#{normalized[:published].inspect}")
