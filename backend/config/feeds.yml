@@ -1,0 +1,19 @@
+defaults: &defaults
+  cache_seconds: 120
+
+feeds:
+  it:
+    <<: *defaults
+    sources:
+      - title: TechCrunch
+        url: https://techcrunch.com/feed/
+      - title: The Verge
+        url: https://www.theverge.com/rss/index.xml
+      - title: Ars Technica
+        url: http://feeds.arstechnica.com/arstechnica/index/
+      - title: Wired
+        url: https://www.wired.com/feed/rss
+      - title: ITmedia
+        url: https://www.itmedia.co.jp/rss/
+      - title: ZDNet Japan
+        url: https://japan.zdnet.com/rss/
