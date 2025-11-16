@@ -7,4 +7,6 @@ Rails.application.routes.draw do
 
   # simple root for healthcheck and frontend
   root to: 'home#index'
+  # RSS / feeds endpoint
+  get 'api/articles', to: 'feeds#index'
 end
