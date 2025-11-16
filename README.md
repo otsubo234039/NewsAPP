@@ -29,80 +29,73 @@ docker compose logs -f
 3. 停止:
 
 ```powershell
+# NewsAPP
+
+このリポジトリは、Next.js フロントエンドと Ruby on Rails API（PostgreSQL）を組み合わせたローカル開発用サンプルです。
+
+主な構成
+- フロントエンド: Next.js + TypeScript (`frontend/`)
+- バックエンド: Ruby on Rails API (`backend/`)
+- DB: PostgreSQL (Docker Compose)
+
+前提
+- Docker と Docker Compose がインストールされていること
+
+クイックスタート（Docker）
+1. リポジトリのルートでサービスをビルド＆起動:
+
+```powershell
+docker compose up -d --build
+```
+
+2. ログを確認する:
+
+```powershell
+docker compose logs -f
+```
+
+3. 停止:
+
+```powershell
 docker compose down
 ```
 
-重要なエンドポイント
-- フロントエンド: `http://localhost:3000/` (ホスト)
-- バックエンド (コンテナ間): `http://backend:3000/` (Compose ネットワーク)
-- バックエンド (ホスト経由): `http://localhost:3001/` (ポートマッピング)
+重要な URL
+- フロントエンド: `http://localhost:3000/`
+- バックエンド (ホスト経由): `http://localhost:3001/`
 
-環境変数（主要）
-- `NEXT_PUBLIC_API_URL`: クライアント側に埋める API ベース URL（例: `http://localhost:3001`）
-- `SERVER_API_URL`: サーバーサイド（Next.js の SSR）からバックエンドへアクセスする URL（Compose 内では `http://backend:3000` を推奨）
+主な API（開発用）
+- ユーザ登録: `POST /api/users`
+	- Content-Type: `application/json`
+	- Body 例:
+		```json
+		{ "user": { "name":"テスト", "email":"test@example.com", "password":"secret", "password_confirmation":"secret" } }
+		```
+- ログイン: `POST /api/sessions`
+	- Body 例:
+		```json
+		{ "email": "test@example.com", "password": "secret" }
+		```
+- ログアウト: `DELETE /api/sessions`
 
-ローカル開発（ローカルで Next dev を使う場合）
-1. Docker で frontend コンテナが起動している場合は先に停止してポートを空ける:
-
-```powershell
-docker compose stop frontend
-```
-
-2. ルートで次のコマンドを実行すると `frontend` 側の dev を起動します（リポジトリルートに proxy 用の `package.json` を用意しています）:
-
-```powershell
-npm run dev
-```
-
-開発メモ
-- `backend/Dockerfile` は DB の TCP ポートが利用可能になるまで待機してから `bin/rails db:create db:migrate` と `bin/rails server` を順に実行するようになっています。
-- VS Code のワークスペース設定（`.vscode/settings.json`）に補完関連の設定を追加しています。補完の挙動は必要に応じてこのファイルを編集してください。
-
-動作確認
-1. フロント表示（SSR）: `http://localhost:3000/` を開き、ページ内にバックエンド応答（例: `{"status":"ok","message":"Rails API running"}`）が表示されれば連携成功です。
-2. 直接バックエンドを確認する場合:
+バックエンドの簡易テスト（ユーザ作成／確認）
+- コンテナ内で rails runner を使ってテストユーザを作成・確認できます:
 
 ```powershell
-Invoke-WebRequest -UseBasicParsing http://localhost:3001/ | Select-Object -ExpandProperty Content
+docker compose exec backend sh -c "bundle exec rails runner /usr/src/app/backend/tmp_create_user.rb"
+docker compose exec backend sh -c "bundle exec rails runner /usr/src/app/backend/tmp_list_users.rb"
 ```
 
-Git / リモート
-- リモートへ push するには GitHub 側の認証が必要です（SSH 鍵または Personal Access Token）。このリポジトリは SSH リモートを利用する設定になっています。
+フロントエンド開発
+- フロントの開発サーバをローカルで起動する場合は、`frontend` コンテナを停止してからローカルで `npm run dev` を実行してください。
 
-RSS フィード（IT）機能（準備済み）
+補足・運用メモ
+- CORS は開発環境向けに `rack-cors` を有効にしています（`backend/config/initializers/cors.rb`）。
+- フロントは API 呼び出しで `credentials: 'include'` を使い、セッション Cookie を利用してログイン状態を保持します。
 
-- エンドポイント: `GET /api/articles?category=it` — バックエンドが設定された IT 系 RSS フィードを取得して JSON で返します（キャッシュあり、デフォルトキャッシュ 120 秒）。
-- フィード設定: `backend/config/feeds.yml` にソース一覧を用意しています。必要に応じて追記できます。
-- フロントの確認ページ: `http://localhost:3000/it-news` を開くと、バックエンドから IT ニュースを取得して表示するデモページが動作します（クライアントサイドで 30 秒ポーリング）。
-
-次のステップ（あなたと一緒に実装）
-- 私はバックエンドとフロントの準備（サービス / コントローラ / 設定 / フロントのデモページ）を追加しました。実際の改善（キャッシュ戦略、追加フィード、ログイン時のユーザ設定保存、ハンバーガーメニューとの接続等）は一緒に進めていきましょう。
-
-
-今後の作業案
-- CI / lint の追加、Compose のヘルスチェック導入、DB マイグレーションの運用改善などを追加できます。要望があれば対応します。
+問い合わせ / 次の作業候補
+- API の認証強化（トークンベース）、追加フィードの登録、UI/UX 改善、CI 導入など。希望があれば対応します。
 
 ---
 
-不明点や追記希望（環境変数の詳細、マイグレーション手順、SSH 登録手順など）があれば教えてください。
-
-- `NEXT_PUBLIC_API_URL` — クライアント側に埋める API ベース URL（デフォルト: `http://localhost:3001`）
-- `SERVER_API_URL` — サーバーサイド（Next.js の SSR など）からバックエンドへアクセスするための URL（Compose 内では `http://backend:3000` を推奨）
-
-開発メモ
-- フロントは SSR を用いて初回レンダリング時にバックエンドへアクセスする想定です。
-- `backend/Dockerfile` は DB の TCP ポートが開くまで待機してからマイグレーション・サーバ起動を行うようにしています。
-
-動作確認
-1. ブラウザで `http://localhost:3000/` を開き、フロントのページが表示されることを確認します。
-2. 直接バックエンドを確認する場合:
-
-```powershell
-Invoke-WebRequest -UseBasicParsing http://localhost:3001/ | Select-Object -ExpandProperty Content
-```
-
-Git / リモート
-- リモートへの push は認証（SSH または Personal Access Token）が必要です。
-- 本リポジトリは現在 SSH リモートへ切り替え済み。公開鍵を GitHub に登録すれば `git push origin main` で反映されます。
-
-追加で欲しい内容があれば教えてください（環境変数一覧、マイグレーション手順、CI 設定など）。
+必要なら README に追加してほしい項目（環境変数の詳細、CI 手順、データシード方法など）を教えてください。
