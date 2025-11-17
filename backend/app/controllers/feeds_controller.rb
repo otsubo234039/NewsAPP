@@ -22,7 +22,8 @@ class FeedsController < ApplicationController
           summary: a[:summary].to_s,
           published: (a[:published].respond_to?(:iso8601) ? a[:published].iso8601 : a[:published].to_s),
           source: a[:source].to_s,
-          lang: (a[:lang] || 'und')
+          lang: (a[:lang] || 'und'),
+          imageUrl: a[:imageUrl].to_s
         }
       end
 
@@ -72,12 +73,12 @@ class FeedsController < ApplicationController
   private
 
   def fallback_articles
-    now = Time.now
+      now = Time.now
     [
-      { title: 'フォールバック: TechCrunch のダミー記事', link: '#', summary: '外部フィード取得に失敗したため表示しています。', published: now.to_s, source: 'TechCrunch' },
-      { title: 'フォールバック: The Verge のダミー記事', link: '#', summary: '外部フィード取得に失敗したため表示しています。', published: (now - 3600).to_s, source: 'The Verge' },
-      { title: 'フォールバック: Ars Technica のダミー記事', link: '#', summary: '外部フィード取得に失敗したため表示しています。', published: (now - 7200).to_s, source: 'Ars Technica' },
-      { title: 'フォールバック: Wired のダミー記事', link: '#', summary: '外部フィード取得に失敗したため表示しています。', published: (now - 10800).to_s, source: 'Wired' }
+      { title: 'フォールバック: TechCrunch のダミー記事', link: '#', summary: '外部フィード取得に失敗したため表示しています。', published: now.to_s, source: 'TechCrunch', imageUrl: 'https://via.placeholder.com/600x400?text=TechCrunch' },
+      { title: 'フォールバック: The Verge のダミー記事', link: '#', summary: '外部フィード取得に失敗したため表示しています。', published: (now - 3600).to_s, source: 'The Verge', imageUrl: 'https://via.placeholder.com/600x400?text=The+Verge' },
+      { title: 'フォールバック: Ars Technica のダミー記事', link: '#', summary: '外部フィード取得に失敗したため表示しています。', published: (now - 7200).to_s, source: 'Ars Technica', imageUrl: 'https://via.placeholder.com/600x400?text=Ars+Technica' },
+      { title: 'フォールバック: Wired のダミー記事', link: '#', summary: '外部フィード取得に失敗したため表示しています。', published: (now - 10800).to_s, source: 'Wired', imageUrl: 'https://via.placeholder.com/600x400?text=Wired' }
     ]
   end
 end
