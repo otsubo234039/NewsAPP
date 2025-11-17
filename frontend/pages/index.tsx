@@ -21,11 +21,15 @@ interface ArticleCardProps {
 const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
   const published = article.published ? new Date(article.published).toLocaleString() : null;
   const [expanded, setExpanded] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const summaryRaw = article.summary || '';
   const truncated = summaryRaw.length > 200 ? summaryRaw.slice(0, 200).trim() + '…' : summaryRaw;
 
   return (
     <div className="article-card">
+      {article.imageUrl && !imgError ? (
+        <img className="article-image" src={article.imageUrl} alt={article.title} onError={() => setImgError(true)} />
+      ) : null}
       <div className="article-content">
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {article.source ? <span className="article-source">{article.source}</span> : null}
