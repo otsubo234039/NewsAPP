@@ -336,9 +336,16 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
 export default HomeScreen;
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  // Try internal Docker Compose hostname first (stable within containers).
-  const primary = 'http://backend:3000';
-  const envFallback = process.env.SERVER_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  // Try a list of candidate backend base URLs. This helps when the Next.js server
+  // runs inside Docker (use service name `backend`), on the host (use localhost:3001),
+  // or inside Docker but needs to reach the host (use host.docker.internal).
+  const candidates = [
+    'http://backend:3000',
+    process.env.SERVER_API_URL,
+    process.env.NEXT_PUBLIC_API_URL,
+    'http://host.docker.internal:3001',
+    'http://localhost:3001',
+  ].filter(Boolean) as string[];
 
   async function fetchArticles(base: string) {
     const res = await fetch(`${base}/api/articles?category=it`);
@@ -347,16 +354,19 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   }
 
   try {
-    let json;
-    try {
-      json = await fetchArticles(primary);
-    } catch (primaryErr) {
-      // primary failed, try env-configured URL
+    let json: any = null;
+    const errors: string[] = [];
+    for (const base of candidates) {
       try {
-        json = await fetchArticles(envFallback);
-      } catch (envErr) {
-        throw new Error(`primary: ${primaryErr.message}; fallback: ${envErr.message}`);
+        json = await fetchArticles(base);
+        // success, stop trying
+        break;
+      } catch (err: any) {
+        errors.push(`${base}: ${err.message}`);
       }
+    }
+    if (!json) {
+      throw new Error(errors.join(' ; '));
     }
     const articles = Array.isArray(json.articles) ? json.articles : [];
     const fallback = !!json.fallback;
