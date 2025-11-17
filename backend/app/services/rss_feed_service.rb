@@ -66,6 +66,31 @@ class RssFeedService
                   published: (item.respond_to?(:pubDate) && item.pubDate) || (item.respond_to?(:published) && item.published) || nil,
                   source: s['title']
                 }
+                # Try to extract an image URL from common locations: enclosure, media:content, or first <img> in summary/description
+                begin
+                  image_url = nil
+                  if item.respond_to?(:enclosure) && item.enclosure && item.enclosure.respond_to?(:url)
+                    image_url = item.enclosure.url.to_s
+                  elsif item.respond_to?(:media_content) && item.media_content && item.media_content.respond_to?(:first) && item.media_content.first.respond_to?(:url)
+                    image_url = item.media_content.first.url.to_s
+                  else
+                    # look for <img src="..."> in summary/description
+                    summary_html = normalized[:summary].to_s
+                    if summary_html =~ /<img[^>]+src=["']([^"'>]+)["']/i
+                      raw_src = $1
+                      begin
+                        # make absolute if relative
+                        image_url = URI.join(s['url'], raw_src).to_s
+                      rescue
+                        image_url = raw_src
+                      end
+                    end
+                  end
+                rescue => img_e
+                  Rails.logger.debug("RssFeedService: failed to extract image for item: #{img_e.class}: #{img_e.message}")
+                  image_url = nil
+                end
+                normalized[:imageUrl] = image_url
                 # language detection: simple heuristic for Japanese characters
                 text_for_lang = (normalized[:title].to_s + " " + normalized[:summary].to_s)
                 if text_for_lang.match(/[\p{Han}\p{Hiragana}\p{Katakana}]/)
