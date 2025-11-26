@@ -26,20 +26,28 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
   const truncated = summaryRaw.length > 200 ? summaryRaw.slice(0, 200).trim() + '…' : summaryRaw;
 
   return (
-    <div className="article-card">
-      {article.imageUrl && !imgError ? (
-        <img className="article-image" src={article.imageUrl} alt={article.title} onError={() => setImgError(true)} />
-      ) : null}
+    <div
+      className={`article-card ${article.link ? 'clickable' : ''}`}
+      onClick={() => {
+        if (article.link) window.open(article.link, '_blank', 'noopener,noreferrer');
+      }}
+      onKeyDown={(e) => { if (e.key === 'Enter' && article.link) { window.open(article.link, '_blank', 'noopener,noreferrer'); } }}
+      tabIndex={0}
+      role={article.link ? 'link' : undefined}
+      title={article.link ? 'クリックで記事を開く' : undefined}
+    >
+      <div className="article-image-wrap">
+        {article.imageUrl && !imgError ? (
+          <img className="article-image" src={article.imageUrl} alt={article.title} loading="lazy" onError={() => setImgError(true)} />
+        ) : (
+          <div className="article-image--placeholder" aria-hidden="false">
+            <img src="/images/placeholder.svg" alt="placeholder" />
+            <div className="placeholder-label">アイキャッチなし</div>
+          </div>
+        )}
+        <div className="article-image-overlay" aria-hidden="true" />
+      </div>
       <div className="article-content">
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {article.source ? <span className="article-source">{article.source}</span> : null}
-          {article.lang ? (
-            <span className="article-lang" style={{ fontSize: '12px', padding: '2px 6px', background: '#eef', borderRadius: 4 }}>
-              {article.lang === 'ja' ? '日本語' : article.lang}
-            </span>
-          ) : null}
-        </div>
-        {published ? <span className="article-published">{published}</span> : null}
         <h3 className="article-title">{article.title}</h3>
         {article.summary ? (
           <p className="article-summary">
@@ -49,11 +57,15 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
             ) : null}
           </p>
         ) : null}
-        {article.link ? (
-          <p className="article-link">
-            <a href={article.link} target="_blank" rel="noreferrer">記事を開く</a>
-          </p>
-        ) : null}
+        <div className="article-meta-row">
+          <div className="meta-left">
+            {article.source ? <span className="article-source">{article.source}</span> : null}
+          </div>
+          {published ? (
+            <div className="meta-right"><span className="article-published">{published}</span></div>
+          ) : null}
+        </div>
+        {/* リンクはクリックで開く仕様のため UI 上の個別リンクは削除 */}
       </div>
     </div>
   );
@@ -94,7 +106,6 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
   }
 
   const [allArticles, setAllArticles] = useState<Article[]>(initialArticles.map(cleanArticle));
-  const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedLang, setSelectedLang] = useState<string>('');
   const [showDrawer, setShowDrawer] = useState(false);
   const [loggedInUser, setLoggedInUser] = useState<string | null>(() => {
@@ -111,8 +122,25 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
   const [currentPage, setCurrentPage] = useState<number>(1);
   const articlesPerPage = 15; // 3 cols * 5 rows
 
+  // Theme (light / dark)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      const v = localStorage.getItem('theme');
+      return (v === 'dark' ? 'dark' : 'light');
+    } catch (e) {
+      return 'light';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (theme === 'dark') document.documentElement.classList.add('theme-dark');
+      else document.documentElement.classList.remove('theme-dark');
+      localStorage.setItem('theme', theme);
+    } catch (e) {}
+  }, [theme]);
+
   const filteredArticles = allArticles.filter(article => {
-    const matchesSearch = article.title.toLowerCase().includes(searchTerm.toLowerCase());
     let matchesLang = true;
     if (selectedLang) {
       matchesLang = article.lang === selectedLang;
@@ -122,13 +150,13 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
     if (selectedCategories && selectedCategories.length > 0) {
       matchesCategory = !!article.category && selectedCategories.includes(article.category as string);
     }
-    return matchesSearch && matchesLang;
+    return matchesLang;
   });
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedLang, allArticles.length]);
+  }, [selectedLang, allArticles.length]);
 
   const totalPages = Math.max(1, Math.ceil(filteredArticles.length / articlesPerPage));
   const startIndex = (currentPage - 1) * articlesPerPage;
@@ -161,7 +189,7 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
   }
 
   return (
-    <div className="home-screen">
+    <div className={`home-screen`}> 
       {fallback ? (
         <div style={{ textAlign: 'center', padding: '8px', background: '#fff3cd', color: '#856404' }}>開発用フォールバック記事を表示しています</div>
       ) : null}
@@ -171,21 +199,17 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
         </div>
 
         <div className="header-center">
-          <div className="search-bar-container">
-            <input
-              type="text"
-              placeholder="タイトルで記事を検索..."
-              className="search-input"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
-          </div>
+          {/* 検索ボックスは非表示（要望により削除） */}
         </div>
 
         <div className="header-right">
           <div className="header-controls">
             <div style={{ fontSize: 12, color: '#666' }}>表示件数: {filteredArticles.length}</div>
           </div>
+          <button className="theme-toggle" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.08)', background: 'transparent', cursor: 'pointer' }}>
+            {theme === 'dark' ? 'ライト' : 'ダーク'}
+          </button>
+
           <select className="lang-select" value={selectedLang} onChange={e => setSelectedLang(e.target.value)}>
             <option value="">すべての言語</option>
             <option value="ja">日本語</option>

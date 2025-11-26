@@ -1,9 +1,41 @@
+:root{
+  --main-color: #0b3d91; /* メインアクセント（深い青） */
+  /* ライトテーマ: 白〜淡い水色のグラデーション */
+  --bg-gradient-light: linear-gradient(180deg, #f0fbff 0%, #dff6ff 50%, #d0eef9 100%);
+  --bg-color-light: #f3fbff; /* ライトテーマのベース（淡い水色） */
+  --text-color-light: #07314a; /* ライトテーマ時の本文色（濃い紺） */
+  --card-bg-light: rgba(255,255,255,0.95); /* ライトテーマのカード（ほぼ白） */
+  --muted: rgba(7,49,74,0.55);
+
+  /* ダークテーマ: これまでの深い青のグラデーションをダークに割当 */
+  --bg-gradient-dark: linear-gradient(180deg, #0b3d91 0%, #062b45 55%, #041328 100%);
+  --bg-color-dark: #041328;
+  --card-bg-dark: rgba(255,255,255,0.02);
+  --text-color-dark: #e6eef8;
+}
+
+/* Web fonts for an IT-news feel: Inter for Latin, Noto Sans JP for Japanese */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
+
+:root {
+  --font-sans: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  /* Warm background gradient */
-  background: linear-gradient(135deg, #fff7f0 0%, #fff1e6 50%, #fff8f2 100%);
-  color: #3b2f2a;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 15px;
+  background: var(--bg-gradient-light);
+  color: var(--text-color-light);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.theme-dark body,
+.theme-dark .home-screen {
+  background: var(--bg-gradient-dark);
+  color: var(--text-color-dark);
 }
 
 .home-screen {
@@ -12,49 +44,129 @@ body {
 }
 
 .home-header {
-  padding: 20px;
+  padding: 18px 20px;
   position: relative;
-  text-align: center;
-  color: #3b2f2a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-color-light);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  backdrop-filter: blur(4px);
 }
 
 .home-header h1 {
   margin: 0;
-  font-size: 2.5rem;
+  font-size: 1.75rem;
+  color: #ffffff; /* ユーザ希望: タイトルを白字に */
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  font-family: var(--font-sans);
+}
+
+@media (max-width: 520px) {
+  .home-header h1 { font-size: 1.3rem; }
 }
 
 /* Article grid: 3 columns on large screens, responsive down to 1 */
 .article-list-container {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  padding: 20px;
+  /* Smaller cards: keep a reasonable minimum width so cards don't grow too large on wide screens */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  padding: 18px;
   justify-items: stretch;
   align-items: start;
 }
 
 .article-card {
-  width: 300px;
-  background-color: #ffffff; 
-  border-radius: 10px; 
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); 
-  overflow: hidden; 
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  background-color: var(--card-bg-light);
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(2,8,23,0.6);
+  overflow: hidden;
+  transition: transform 0.18s ease-in-out, box-shadow 0.18s ease-in-out, border 0.18s;
+  display: flex;
+  flex-direction: column;
+  aspect-ratio: 4 / 5; /* カード全体の比率を固定（幅に応じて高さが決まる） */
+  border: 1px solid rgba(255,255,255,0.03);
+  color: var(--text-color-light);
+}
+
+.article-card.clickable { cursor: pointer; }
+
+.article-card:focus {
+  outline: none;
+}
+
+/* Show the elevated "floating" effect only for keyboard focus (accessibility).
+   Mouse clicks should not leave the card visually elevated when navigating back. */
+.article-card:focus-visible {
+  box-shadow: 0 6px 18px rgba(11,61,145,0.15);
+  transform: translateY(-6px) scale(1.01);
+  border-color: rgba(11,61,145,0.2);
 }
 
 .article-card:hover {
-  transform: translateY(-5px); 
-  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 0 14px 40px rgba(2,12,40,0.65);
+  border-color: rgba(255,255,255,0.06);
 }
 
 .article-image {
   width: 100%;
-  height: 150px;
-  object-fit: cover; 
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  flex: none;
+  background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
 }
 
+.article-image-wrap {
+  position: relative;
+  width: 100%;
+  /* 画像領域はカード内で一定割合を占める（カード高さが aspect-ratio で決まるため、比率が保たれます） */
+  flex: 0 0 40%;
+  overflow: hidden;
+}
+
+.article-image-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 60px;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.28) 60%, rgba(0,0,0,0.5) 100%);
+  pointer-events: none;
+}
+
+.article-image--placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  background: linear-gradient(90deg, rgba(11,61,145,0.08), rgba(11,61,145,0.04));
+  color: var(--text-color-light);
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.article-image--placeholder svg { width: 48px; height: 48px; opacity: 0.95; }
+.article-image--placeholder .placeholder-label { font-size: 0.88rem; color: var(--text-color-light); }
+
+/* Ensure placeholder img (SVG) scales nicely and real <img> fills the wrapper */
+.article-image--placeholder img { width: 48px; height: 48px; display: block; }
+.article-image { max-width: 100%; }
+
 .article-content {
-  padding: 15px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0; /* overflow 子要素での高さ計算に必要 */
 }
 
 .article-category {
@@ -63,35 +175,66 @@ body {
   background-color: #f0f0f0;
   padding: 2px 6px;
   border-radius: 4px;
+  font-family: var(--font-sans);
 }
 
 .article-title {
-  font-size: 1.2rem;
-  font-weight: bold;
-  margin: 10px 0;
+  font-size: 1.12rem;
+  font-weight: 700;
+  margin: 6px 0;
+  color: var(--text-color-light);
+  display: -webkit-box;
+  /* Standard property for line clamping (compatibility alongside the WebKit prefix) */
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  letter-spacing: -0.2px;
 }
 
 .article-summary {
-  font-size: 0.9rem;
-  color: #333;
-  line-height: 1.4;
+  font-size: 0.95rem;
+  color: var(--text-color-light);
+  line-height: 1.55;
+  font-family: var(--font-sans);
+  font-weight: 300;
+}
+
+/* metadata row to separate source/lang (left) and published (right) */
+.article-meta-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: auto; }
+.meta-left { display: flex; gap: 8px; align-items: center; }
+.meta-right { display: flex; align-items: center; }
+.article-source { font-weight: 600; font-size: 0.78rem; color: var(--muted); font-family: var(--font-sans); }
+.article-published { font-size: 0.7rem; color: var(--muted); font-family: var(--font-sans); }
+
+/* language badge removed from frontend; language info kept server-side only */
+
+/* limit summary to approx 4 lines so cards keep uniform height */
+.article-summary {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  /* Standard property for line clamping (compatibility alongside the WebKit prefix) */
+  line-clamp: 4;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
 }
 
 .article-source {
   display: inline-block;
   font-size: 0.75rem;
-  color: #777;
+  color: var(--muted);
   margin-right: 8px;
 }
 
 .article-published {
   display: inline-block;
-  font-size: 0.75rem;
-  color: #999;
+  font-size: 0.72rem;
+  color: var(--muted);
 }
 
 .article-link a {
-  color: #1a73e8;
+  color: var(--main-color);
   text-decoration: none;
   font-weight: 600;
 }
@@ -100,22 +243,32 @@ body {
   text-decoration: underline;
 }
 
-/* read-more button */
+/* read-more button (match card background) */
 .read-more {
   margin-left: 8px;
-  background: transparent;
-  border: none;
-  color: #1a73e8;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.03);
+  color: var(--main-color);
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
 }
+
+.theme-dark .read-more { background: rgba(255,255,255,0.02); }
 
 /* Drawer styles */
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.35);
+  /* より濃い背景色にして下のコンテンツが透けないようにする（ライト時: 深い青の半透明） */
+  background: rgba(3,49,74,0.80);
   z-index: 1200;
+}
+
+/* ダークテーマ時はオーバーレイをさらに暗くしてコントラストを確保 */
+.theme-dark .drawer-overlay {
+  background: rgba(2,6,18,0.85);
 }
 .drawer {
   position: fixed;
@@ -124,19 +277,51 @@ body {
   width: 320px;
   max-width: 90vw;
   height: 100vh;
-  background: #fff;
+  background: var(--card-bg-light);
   box-shadow: -8px 0 24px rgba(0,0,0,0.12);
   z-index: 1300;
   padding: 16px;
   overflow-y: auto;
 }
+
+/* ダークテーマではドロワー自体が透けないように、背景を濃い単色にする */
+.theme-dark .drawer {
+  background: rgba(4,19,40,0.96);
+}
 .drawer-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
-.drawer-close { background: transparent; border: none; font-size:18px; cursor:pointer; }
+.drawer-close {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text-color-light);
+  font-size: 18px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+.drawer-close:hover {
+  transform: translateY(-2px);
+  background: rgba(11,61,145,0.12);
+  box-shadow: 0 6px 18px rgba(2,8,23,0.18);
+}
+
+/* Dark theme: make the close button visible on dark background */
+.theme-dark .drawer-close {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.06);
+  color: var(--text-color-dark);
+}
+.theme-dark .drawer-close:hover { background: rgba(255,255,255,0.08); }
 .drawer-section { padding: 8px 0; border-top: 1px dashed #eee; margin-top: 8px; }
 .auth-box .auth-input { width: 100%; padding:8px 10px; margin-bottom:8px; border-radius:6px; border:1px solid #ddd; }
-.tab { padding:6px 10px; border-radius:6px; border:1px solid #eee; background:#fafafa; cursor:pointer; }
-.tab.active { background:#fff0df; border-color:#ffd9b3; }
-.primary { background:#ffb36b; border:none; padding:8px 12px; color:#fff; border-radius:6px; cursor:pointer; }
+.tab { padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:var(--card-bg-light); cursor:pointer; }
+.tab.active { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.06); }
+.theme-dark .tab { background: var(--card-bg-dark); border-color: rgba(255,255,255,0.04); }
+.theme-dark .tab.active { background: rgba(255,255,255,0.03); }
+.primary { background: var(--main-color); border:none; padding:8px 12px; color:#fff; border-radius:6px; cursor:pointer; }
 .category-list { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
 .category-item { display:flex; gap:8px; align-items:center; }
 
@@ -149,12 +334,32 @@ body {
   font-size: 0.95rem;
 }
 
+/* theme toggle button (match card bg) */
+.theme-toggle {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.04);
+  background: var(--card-bg-light);
+  cursor: pointer;
+  font-weight: 600;
+}
+.theme-toggle:hover { background: rgba(255,255,255,0.04); }
+.theme-dark .theme-toggle { background: var(--card-bg-dark); border-color: rgba(255,255,255,0.04); color: #fff; }
+
 /* Responsive grid breakpoints */
 @media (max-width: 900px) {
   .article-list-container { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 520px) {
   .article-list-container { grid-template-columns: 1fr; }
+  /* 小さい画面ではカード比率を少し縦長にして情報量に合わせる */
+  .article-card { aspect-ratio: 3 / 4; }
+  .article-image-wrap { flex: 0 0 40%; }
+}
+
+/* Desktop: force 4 columns on sufficiently wide screens */
+@media (min-width: 1200px) {
+  .article-list-container { grid-template-columns: repeat(4, minmax(220px, 1fr)); }
 }
 
 /* Header layout (left select, centered title, right controls) */
@@ -172,16 +377,44 @@ body {
 .search-bar-container { margin: 0; }
 .search-input { width: 360px; max-width: 40vw; }
 
-/* Hamburger menu button */
+/* Hamburger menu button (match card bg) */
 .hamburger {
-  background: transparent;
-  border: none;
+  background: var(--card-bg-light);
+  border: 1px solid rgba(255,255,255,0.04);
   font-size: 20px;
   padding: 8px 10px;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 8px;
 }
-.hamburger:hover { background: rgba(0,0,0,0.03); }
+.hamburger:hover { background: rgba(255,255,255,0.04); transform: translateY(-2px); }
+.theme-dark .hamburger { background: var(--card-bg-dark); border-color: rgba(255,255,255,0.04); }
+
+/* Dark theme overrides */
+.theme-dark .article-card { background: var(--card-bg-dark); box-shadow: 0 6px 18px rgba(0,0,0,0.6); color: var(--text-color-dark); }
+.theme-dark .drawer { background: var(--card-bg-dark); }
+.theme-dark .lang-select { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.06); color: var(--text-color-dark); }
+.theme-dark .search-input { background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.06); color: var(--text-color-dark); }
+.theme-dark .article-summary, .theme-dark .article-title, .theme-dark .article-source { color: var(--text-color-dark); }
+.theme-dark .article-published { color: rgba(230,238,248,0.8); }
+.theme-dark .article-category { background: rgba(255,255,255,0.03); color: var(--text-color-dark); }
+.theme-dark .article-image--placeholder,
+.theme-dark .article-image--placeholder .placeholder-label { color: var(--text-color-dark); }
+.theme-dark .article-link a, .theme-dark .read-more { color: var(--main-color); }
+.theme-dark .home-header { color: var(--text-color-dark); }
+
+/* Login page styles */
+.login-page { display:flex; justify-content:center; align-items:flex-start; padding:60px 16px; min-height: calc(100vh - 60px); }
+.login-card { width: 420px; max-width: 92vw; background: var(--card-bg-light); border-radius: 12px; padding: 22px; box-shadow: 0 10px 40px rgba(2,8,23,0.08); border: 1px solid rgba(255,255,255,0.04); }
+.theme-dark .login-card { background: var(--card-bg-dark); box-shadow: 0 6px 20px rgba(0,0,0,0.6); }
+.login-card h2 { margin: 0 0 12px 0; font-size: 1.3rem; color: var(--text-color-light); }
+.theme-dark .login-card h2 { color: var(--text-color-dark); }
+.login-form { display:flex; flex-direction:column; gap:10px; }
+.login-label { font-size:0.9rem; color: var(--muted); }
+.login-input { padding:10px 12px; border-radius:8px; border:1px solid rgba(0,0,0,0.08); background: rgba(255,255,255,0.96); font-size:1rem; }
+.theme-dark .login-input { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.06); color: var(--text-color-dark); }
+.login-error { color: #d9534f; font-weight:600; margin-top:6px; }
+.login-actions { display:flex; gap:10px; margin-top:8px; }
+
 
 .header-right .lang-select { order: 2; }
 .header-right .hamburger { order: 3; }
@@ -200,8 +433,10 @@ body {
   padding: 10px 15px;
   font-size: 1rem;
   border-radius: 20px;
-  border: 1px solid #ccc;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-color-light);
+  box-shadow: none;
 }
 
 .page-ellipsis {
@@ -218,7 +453,7 @@ body {
   align-items: center;
   height: 50vh;
   font-size: 1.5rem;
-  color: white; 
+  color: var(--text-color-light);
   font-weight: bold;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
@@ -238,18 +473,41 @@ body {
   gap: 8px;
   justify-content: center;
   align-items: center;
-  padding: 18px 0 40px 0;
+  padding: 12px 0;
+  margin: 16px 0;
+  background: transparent; /* remove surrounding box */
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Dark theme: keep pagination consistent with dark card background */
+.theme-dark .pagination {
+  background: transparent;
+  border: none;
 }
 
 .page-button {
   padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid rgba(0,0,0,0.08);
-  background: #fff;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.04);
+  background: var(--card-bg-light);
+  color: var(--text-color-light);
   cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
 }
 
+.page-button:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(2,8,23,0.35); }
+
 .page-button.active {
-  background: #ffd9b3;
-  border-color: #ffb36b;
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.06);
 }
+
+/* Dark theme overrides for buttons to match dark card background */
+.theme-dark .page-button {
+  background: var(--card-bg-dark);
+  color: var(--text-color-dark);
+  border-color: rgba(255,255,255,0.04);
+}
+.theme-dark .page-button.active { background: rgba(255,255,255,0.03); }
