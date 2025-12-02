@@ -7,3 +7,5 @@ coverage/
 backend/vendor/bundle/
 frontend/.next/
 frontend/package-lock.json
+docker-diagnostics/
+backups/
