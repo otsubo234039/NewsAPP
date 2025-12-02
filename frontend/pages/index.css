@@ -32,6 +32,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Hide global scrollbars visually while preserving scroll functionality */
+html, body, .home-screen {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar, .home-screen::-webkit-scrollbar {
+  display: none; /* WebKit browsers */
+  width: 0;
+  height: 0;
+}
+
 .theme-dark body,
 .theme-dark .home-screen {
   background: var(--bg-gradient-dark);
@@ -58,7 +69,7 @@ body {
 .home-header h1 {
   margin: 0;
   font-size: 1.75rem;
-  color: #ffffff; /* ユーザ希望: タイトルを白字に */
+  color: var(--text-color-light);
   font-weight: 800;
   letter-spacing: -0.4px;
   font-family: var(--font-sans);
@@ -71,10 +82,9 @@ body {
 /* Article grid: 3 columns on large screens, responsive down to 1 */
 .article-list-container {
   display: grid;
-  /* Smaller cards: keep a reasonable minimum width so cards don't grow too large on wide screens */
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-  padding: 18px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding: 28px;
   justify-items: stretch;
   align-items: start;
 }
@@ -125,7 +135,7 @@ body {
   position: relative;
   width: 100%;
   /* 画像領域はカード内で一定割合を占める（カード高さが aspect-ratio で決まるため、比率が保たれます） */
-  flex: 0 0 40%;
+  flex: 0 0 45%;
   overflow: hidden;
 }
 
@@ -161,10 +171,10 @@ body {
 .article-image { max-width: 100%; }
 
 .article-content {
-  padding: 16px;
+  padding: 20px 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   flex: 1 1 auto;
   min-height: 0; /* overflow 子要素での高さ計算に必要 */
 }
@@ -284,6 +294,21 @@ body {
   overflow-y: auto;
 }
 
+/* Hide visible scrollbars on registration/setup surfaces while keeping scroll functionality */
+.drawer, .setup-card {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.drawer::-webkit-scrollbar, .setup-card::-webkit-scrollbar {
+  display: none; /* WebKit */
+  width: 0;
+  height: 0;
+}
+
+/* Also hide scrollbar on the select box inside setup (multi-select) to keep clean UI) */
+.setup-card select::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.setup-card select { scrollbar-width: none; -ms-overflow-style: none; }
+
 /* ダークテーマではドロワー自体が透けないように、背景を濃い単色にする */
 .theme-dark .drawer {
   background: rgba(4,19,40,0.96);
@@ -355,11 +380,6 @@ body {
   /* 小さい画面ではカード比率を少し縦長にして情報量に合わせる */
   .article-card { aspect-ratio: 3 / 4; }
   .article-image-wrap { flex: 0 0 40%; }
-}
-
-/* Desktop: force 4 columns on sufficiently wide screens */
-@media (min-width: 1200px) {
-  .article-list-container { grid-template-columns: repeat(4, minmax(220px, 1fr)); }
 }
 
 /* Header layout (left select, centered title, right controls) */
@@ -511,3 +531,69 @@ body {
   border-color: rgba(255,255,255,0.04);
 }
 .theme-dark .page-button.active { background: rgba(255,255,255,0.03); }
+
+/* First-visit modal styling (matches theme and background) */
+.first-visit-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4,19,40,0.6); /* dim the page but keep bluish tone */
+  z-index: 1400;
+  padding: 20px;
+}
+.theme-dark .first-visit-overlay { background: rgba(2,6,18,0.7); }
+
+.first-visit-modal {
+  width: 920px;
+  max-width: 96vw;
+  background: var(--card-bg-light);
+  color: var(--text-color-light);
+  border-radius: 12px;
+  padding: 22px;
+  box-shadow: 0 18px 60px rgba(2,8,23,0.6);
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.theme-dark .first-visit-modal { background: var(--card-bg-dark); color: var(--text-color-dark); border-color: rgba(255,255,255,0.04); box-shadow: 0 14px 46px rgba(0,0,0,0.7); }
+
+.first-visit-modal h2 { margin: 0 0 8px 0; font-size: 1.4rem; }
+.first-visit-modal p { margin: 0 0 12px 0; color: var(--muted); }
+
+/* make modal contents responsive */
+@media (max-width: 720px) {
+  .first-visit-modal { width: 100%; padding: 16px; }
+  .first-visit-modal > div { flex-direction: column; }
+}
+
+/* Setup page card */
+.setup-page { background: transparent; }
+.setup-card { width: 920px; max-width: 96vw; background: var(--card-bg-light); color: var(--text-color-light); border-radius: 12px; padding: 22px; box-shadow: 0 18px 60px rgba(2,8,23,0.6); border: 1px solid rgba(255,255,255,0.04); }
+.theme-dark .setup-card { background: var(--card-bg-dark); color: var(--text-color-dark); border-color: rgba(255,255,255,0.04); box-shadow: 0 14px 46px rgba(0,0,0,0.7); }
+
+.setup-card h2 { margin: 0 0 8px 0; font-size: 1.4rem; }
+.setup-card p { margin: 0 0 12px 0; color: var(--muted); }
+
+/* TagDropdown styles: show options in two columns */
+.tag-dropdown-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.06);
+  background: var(--card-bg-light);
+  cursor: pointer;
+}
+.theme-dark .tag-dropdown-button { background: var(--card-bg-dark); border-color: rgba(255,255,255,0.04); }
+
+.tag-dropdown-panel { min-width: 260px; max-width: 420px; }
+.tag-group { margin-bottom: 10px; }
+.tag-group-label { font-weight: 700; margin-bottom: 6px; }
+.tag-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+.tag-option { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.tag-option input { width: 16px; height: 16px; }

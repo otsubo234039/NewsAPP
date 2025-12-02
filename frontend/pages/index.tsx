@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { GetServerSideProps } from 'next';
+import TagDropdown from '../components/TagDropdown';
+
 
 
 interface Article {
@@ -42,7 +45,7 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
         ) : (
           <div className="article-image--placeholder" aria-hidden="false">
             <img src="/images/placeholder.svg" alt="placeholder" />
-            <div className="placeholder-label">アイキャッチなし</div>
+            <div className="placeholder-label">Noimage</div>
           </div>
         )}
         <div className="article-image-overlay" aria-hidden="true" />
@@ -108,6 +111,7 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
   const [allArticles, setAllArticles] = useState<Article[]>(initialArticles.map(cleanArticle));
   const [selectedLang, setSelectedLang] = useState<string>('');
   const [showDrawer, setShowDrawer] = useState(false);
+  const router = useRouter();
   const [loggedInUser, setLoggedInUser] = useState<string | null>(() => {
     try { return localStorage.getItem('user') || null; } catch (e) { return null; }
   });
@@ -124,21 +128,39 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
 
   // Theme (light / dark)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    // Default to light on the server to avoid referencing localStorage during SSR.
+    // The real persisted theme (if any) will be applied on the client after mount.
     try {
-      const v = localStorage.getItem('theme');
+      const v = (typeof window !== 'undefined') ? localStorage.getItem('theme') : null;
       return (v === 'dark' ? 'dark' : 'light');
     } catch (e) {
       return 'light';
     }
   });
 
+  // Prevent hydration mismatch: only render theme-dependent UI after client mount
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   useEffect(() => {
     try {
       if (theme === 'dark') document.documentElement.classList.add('theme-dark');
       else document.documentElement.classList.remove('theme-dark');
-      localStorage.setItem('theme', theme);
+      if (typeof window !== 'undefined') localStorage.setItem('theme', theme);
     } catch (e) {}
   }, [theme]);
+
+  // If the user hasn't completed initial setup, send them to the dedicated setup screen
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const done = localStorage.getItem('newsapp:setupComplete');
+        if (done !== '1') {
+          router.replace('/setup');
+        }
+      }
+    } catch (e) {}
+  }, [router]);
 
   const filteredArticles = allArticles.filter(article => {
     let matchesLang = true;
@@ -148,15 +170,24 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
     // category filter (if any selected)
     let matchesCategory = true;
     if (selectedCategories && selectedCategories.length > 0) {
-      matchesCategory = !!article.category && selectedCategories.includes(article.category as string);
+      const loweredSel = selectedCategories.map(s => String(s).toLowerCase());
+      const artCat = String(article.category || '').toLowerCase();
+      const artSrc = String(article.source || '').toLowerCase();
+      const artTags = Array.isArray((article as any).tags) ? (article as any).tags.map((t:any)=>String(t).toLowerCase()) : [];
+      matchesCategory = loweredSel.some(sel => (artCat && artCat === sel) || (artSrc && artSrc === sel) || artTags.includes(sel));
     }
-    return matchesLang;
+    return matchesLang && matchesCategory;
   });
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedLang, allArticles.length]);
+
+  // persist selected categories whenever they change
+  useEffect(() => {
+    try { localStorage.setItem('selectedCategories', JSON.stringify(selectedCategories)); } catch (e) {}
+  }, [selectedCategories]);
 
   const totalPages = Math.max(1, Math.ceil(filteredArticles.length / articlesPerPage));
   const startIndex = (currentPage - 1) * articlesPerPage;
@@ -185,7 +216,17 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
   }
 
   if (error) {
-    return <div className="error-message">{error}</div>;
+    return (
+      <div style={{ padding: 20 }}>
+        <div style={{ background: '#ffecec', color: '#661010', padding: 12, borderRadius: 6 }}>
+          <div style={{ fontWeight: 600 }}>エラー</div>
+          <div style={{ marginTop: 6 }}>{error}</div>
+          <div style={{ marginTop: 10 }}>
+            <button className="primary" onClick={() => location.reload()}>再読み込み</button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -206,8 +247,13 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
           <div className="header-controls">
             <div style={{ fontSize: 12, color: '#666' }}>表示件数: {filteredArticles.length}</div>
           </div>
-          <button className="theme-toggle" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.08)', background: 'transparent', cursor: 'pointer' }}>
-            {theme === 'dark' ? 'ライト' : 'ダーク'}
+          <button
+            className="theme-toggle"
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.08)', background: 'transparent', cursor: 'pointer' }}
+          >
+            {/* Avoid server/client text mismatch by only showing the theme label after mount */}
+            {mounted ? (theme === 'dark' ? 'ライト' : 'ダーク') : ''}
           </button>
 
           <select className="lang-select" value={selectedLang} onChange={e => setSelectedLang(e.target.value)}>
@@ -218,6 +264,8 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
           <button className="hamburger" aria-label="メニュー" onClick={() => setShowDrawer(true)}>☰</button>
         </div>
       </header>
+
+      {/* 初回セットアップは専用ページ `/setup` に分離しました */}
 
       {/* Drawer + overlay */}
       {showDrawer ? (
@@ -306,20 +354,20 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
             <div className="drawer-section">
               <strong>カテゴリー選択</strong>
               <div className="category-list">
-                {Array.from(new Set(allArticles.map(a => a.category).filter(Boolean))).map(cat => (
-                  <label key={cat} className="category-item">
-                    <input type="checkbox" checked={selectedCategories.includes(cat as string)} onChange={e => {
-                      let next = [...selectedCategories];
-                      if (e.target.checked) next.push(cat as string); else next = next.filter(c => c !== cat);
-                      setSelectedCategories(next);
-                      try { localStorage.setItem('selectedCategories', JSON.stringify(next)); } catch (err) {}
-                    }} />
-                    <span>{cat}</span>
-                  </label>
-                ))}
-                {Array.from(new Set(allArticles.map(a => a.category).filter(Boolean))).length === 0 ? (
-                  <div style={{ color: '#666', marginTop: 8 }}>カテゴリーが登録されていません</div>
-                ) : null}
+                {
+                  (() => {
+                    const cats = Array.from(new Set(allArticles.map(a => a.category).filter(Boolean)));
+                    if (cats.length === 0) return <div style={{ color: '#666', marginTop: 8 }}>カテゴリーが登録されていません</div>;
+                    return (
+                      <TagDropdown
+                        groups={[{ label: 'Categories', options: cats.map((c:any)=>({ value: c, label: c })) }]}
+                        selected={selectedCategories}
+                        onChange={(next) => { setSelectedCategories(next); try { localStorage.setItem('selectedCategories', JSON.stringify(next)); } catch (err) {} }}
+                        placeholder="カテゴリーを選択"
+                      />
+                    );
+                  })()
+                }
               </div>
             </div>
           </aside>
@@ -384,13 +432,26 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
   try {
     let json: any = null;
     const errors: string[] = [];
-    for (const base of candidates) {
+    // First, try internal Next API (same origin) by constructing base from request headers
+    const req = context.req as any;
+    const proto = (req.headers['x-forwarded-proto'] as string) || (req.connection && req.connection.encrypted ? 'https' : 'http');
+    const host = req.headers.host;
+    const selfBase = host ? `${proto}://${host}` : null;
+    if (selfBase) {
       try {
-        json = await fetchArticles(base);
-        // success, stop trying
-        break;
-      } catch (err: any) {
-        errors.push(`${base}: ${err.message}`);
+        json = await fetchArticles(selfBase);
+      } catch (err) {
+        // fallthrough to other candidates
+      }
+    }
+    if (!json) {
+      for (const base of candidates) {
+        try {
+          json = await fetchArticles(base);
+          break;
+        } catch (err: any) {
+          errors.push(`${base}: ${err.message}`);
+        }
       }
     }
     if (!json) {
@@ -398,8 +459,46 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     }
     const articles = Array.isArray(json.articles) ? json.articles : [];
     const fallback = !!json.fallback;
-    return { props: { articles, fallback } };
+    // Normalize articles: Next.js cannot serialize `undefined`, convert to `null`.
+    const safeArticles = articles.map((a: any) => ({
+      id: a.id ?? null,
+      title: a.title ?? null,
+      summary: a.summary ?? null,
+      imageUrl: a.imageUrl ?? null,
+      category: a.category ?? null,
+      link: a.link ?? null,
+      published: a.published ?? null,
+      source: a.source ?? null,
+      lang: a.lang ?? null,
+    }));
+    return { props: { articles: safeArticles, fallback } };
   } catch (e: any) {
-    return { props: { articles: [], error: e.message || 'データ取得中にエラーが発生しました' } };
+    // If we cannot reach any backend candidate, return a safe set of mock articles
+    // so the frontend can be developed and inspected without the backend running.
+    const mockArticles: Article[] = [
+      {
+        id: 'mock-1',
+        title: '開発用ダミー記事 — サーバー未接続',
+        summary: 'バックエンドに接続できないため、モック記事を表示しています。バックエンドが利用可能になったら自動で実データに切り替わります。',
+        imageUrl: '/images/placeholder.svg',
+        category: 'it',
+        link: null,
+        published: Date.now(),
+        source: 'ローカルモック',
+        lang: 'ja',
+      },
+      {
+        id: 'mock-2',
+        title: 'Sample article (EN) — offline mock',
+        summary: 'This is a fallback article shown while the backend is unreachable.',
+        imageUrl: '/images/placeholder.svg',
+        category: 'it',
+        link: null,
+        published: Date.now(),
+        source: 'local-mock',
+        lang: 'en',
+      }
+    ];
+    return { props: { articles: mockArticles, fallback: true, error: null } };
   }
 };

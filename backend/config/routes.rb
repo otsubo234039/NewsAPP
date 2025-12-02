@@ -13,5 +13,6 @@ Rails.application.routes.draw do
   namespace :api do
     resources :users, only: [:create]
     resource :sessions, only: [:create, :destroy]
+    resources :tags, only: [:index]
   end
 end
