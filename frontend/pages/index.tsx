@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { GetServerSideProps } from 'next';
-import TagDropdown from '../components/TagDropdown';
 
 
 
@@ -78,9 +77,10 @@ type Props = {
   articles: Article[];
   fallback?: boolean;
   error?: string | null;
+  tags?: any[];
 };
 
-const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback = false, error }) => {
+const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback = false, error, tags = [] }) => {
   // Sanitize article text to remove invisible chars and unwanted newlines
   function cleanText(value?: string) {
     if (!value) return value || '';
@@ -122,9 +122,16 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
   const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
     try { const v = localStorage.getItem('selectedCategories'); return v ? JSON.parse(v) : []; } catch (e) { return []; }
   });
+  const [tagList, setTagList] = useState<any[]>(tags || []); // categories/tags list for drawer
+
+  // Count articles per category
+  const [categoryArticleCounts, setCategoryArticleCounts] = useState<Record<string, number>>({});
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
   const articlesPerPage = 15; // 3 cols * 5 rows
+
+  // Search query
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Theme (light / dark)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -150,13 +157,97 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
     } catch (e) {}
   }, [theme]);
 
-  // If the user hasn't completed initial setup, send them to the dedicated setup screen
+  // Fetch tags on client if not provided (e.g., SSR fetch failed)
+  useEffect(() => {
+    const loadTags = async () => {
+      if (tagList && tagList.length > 0) return;
+      try {
+        const res = await fetch('/api/tags');
+        if (!res.ok) return;
+        const j = await res.json();
+        if (Array.isArray(j?.tags)) setTagList(j.tags);
+        else if (Array.isArray(j)) setTagList(j);
+      } catch (e) {}
+    };
+    loadTags();
+  }, [tagList]);
+
+  // Count articles per category/tag
+  useEffect(() => {
+    const counts: Record<string, number> = {};
+    
+    // Build slug to category map
+    const slugMap: Record<string, any> = {};
+    const buildSlugMap = (items: any[]) => {
+      for (const item of items) {
+        if (item.slug) slugMap[item.slug] = item;
+        if (Array.isArray(item.children)) buildSlugMap(item.children);
+      }
+    };
+    if (tagList && tagList.length > 0) buildSlugMap(tagList);
+    
+    // Source -> category slug mapping
+    const sourceToCategory: Record<string, string> = {
+      'techcrunch': 'programming',
+      'the verge': 'software',
+      'ars technica': 'software',
+      'wired': 'ai-ml',
+      'zdnet japan': 'devops-infra',
+      'cnet japan': 'software',
+      'ascii.jp': 'programming',
+      'itmedia': 'programming',
+    };
+    
+    for (const article of allArticles) {
+      const source = article.source ? String(article.source).toLowerCase() : '';
+      const tags = Array.isArray((article as any).tags) ? (article as any).tags : [];
+      
+      // Try to determine category from source
+      let articleCategory: string | null = null;
+      for (const [sourceKey, categorySlug] of Object.entries(sourceToCategory)) {
+        if (source.includes(sourceKey.toLowerCase())) {
+          articleCategory = categorySlug;
+          break;
+        }
+      }
+      
+      // Count by determined category or use top-level as fallback
+      if (articleCategory && slugMap[articleCategory]) {
+        counts[articleCategory] = (counts[articleCategory] || 0) + 1;
+      } else {
+        // Fallback: count to all top-level if no match
+        if (tagList && tagList.length > 0) {
+          tagList.forEach((item: any) => {
+            if (!item.parent_id && item.slug) {
+              counts[item.slug] = (counts[item.slug] || 0) + 1;
+            }
+          });
+        }
+      }
+      
+      // Also support tags if present
+      for (const tag of tags) {
+        const tagStr = String(tag).toLowerCase();
+        if (slugMap[tagStr]) {
+          counts[tagStr] = (counts[tagStr] || 0) + 1;
+        }
+      }
+    }
+    setCategoryArticleCounts(counts);
+  }, [allArticles, tagList]);
+
+  // 初回訪問時のみsetup画面へ誘導
   useEffect(() => {
     try {
       if (typeof window !== 'undefined') {
-        const done = localStorage.getItem('newsapp:setupComplete');
-        if (done !== '1') {
+        const visited = localStorage.getItem('newsapp:visited');
+        const user = localStorage.getItem('user');
+        // 初回訪問かつ未ログインの場合のみsetup画面へ
+        if (!visited && !user) {
+          localStorage.setItem('newsapp:visited', '1');
           router.replace('/setup');
+        } else if (!visited) {
+          localStorage.setItem('newsapp:visited', '1');
         }
       }
     } catch (e) {}
@@ -176,7 +267,15 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
       const artTags = Array.isArray((article as any).tags) ? (article as any).tags.map((t:any)=>String(t).toLowerCase()) : [];
       matchesCategory = loweredSel.some(sel => (artCat && artCat === sel) || (artSrc && artSrc === sel) || artTags.includes(sel));
     }
-    return matchesLang && matchesCategory;
+    // search filter
+    let matchesSearch = true;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const title = String(article.title || '').toLowerCase();
+      const summary = String(article.summary || '').toLowerCase();
+      matchesSearch = title.includes(query) || summary.includes(query);
+    }
+    return matchesLang && matchesCategory && matchesSearch;
   });
 
   // Reset page when filters change
@@ -239,21 +338,78 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
           <h1>ニュース</h1>
         </div>
 
-        <div className="header-center">
-          {/* 検索ボックスは非表示（要望により削除） */}
+        <div className="header-center" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="記事を検索..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                setCurrentPage(1);
+              }
+            }}
+            className="search-input"
+            style={{
+              padding: '8px 12px',
+              borderRadius: 8,
+              border: '1px solid rgba(0,0,0,0.1)',
+              background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#fff',
+              color: theme === 'dark' ? '#e6eef8' : '#07314a',
+              fontSize: 14,
+              flex: 1,
+              maxWidth: 400
+            }}
+          />
+          <button
+            onClick={() => setCurrentPage(1)}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 8,
+              border: theme === 'dark' ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.1)',
+              background: theme === 'dark' ? 'linear-gradient(135deg, #1e5aa8 0%, #0b3d91 100%)' : '#0b3d91',
+              color: '#fff',
+              fontSize: 14,
+              cursor: 'pointer',
+              fontWeight: 600,
+              transition: 'all 0.2s',
+              whiteSpace: 'nowrap',
+              boxShadow: theme === 'dark' ? '0 2px 8px rgba(30,90,168,0.3)' : 'none'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = theme === 'dark' ? 'linear-gradient(135deg, #2672c7 0%, #1e5aa8 100%)' : '#0a2f7a';
+              e.currentTarget.style.boxShadow = theme === 'dark' ? '0 4px 12px rgba(38,114,199,0.4)' : 'none';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = theme === 'dark' ? 'linear-gradient(135deg, #1e5aa8 0%, #0b3d91 100%)' : '#0b3d91';
+              e.currentTarget.style.boxShadow = theme === 'dark' ? '0 2px 8px rgba(30,90,168,0.3)' : 'none';
+            }}
+          >
+            🔍 検索
+          </button>
         </div>
 
-        <div className="header-right">
-          <div className="header-controls">
-            <div style={{ fontSize: 12, color: '#666' }}>表示件数: {filteredArticles.length}</div>
+        <div className="header-right" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div style={{ fontSize: 12, color: theme === 'dark' ? '#999' : '#666' }}>
+            表示件数: {filteredArticles.length}
           </div>
           <button
             className="theme-toggle"
             onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.08)', background: 'transparent', cursor: 'pointer' }}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 8,
+              border: '1px solid rgba(0,0,0,0.1)',
+              background: theme === 'dark' ? 'rgba(255,255,255,0.08)' : '#f5f5f5',
+              color: theme === 'dark' ? '#e6eef8' : '#07314a',
+              cursor: 'pointer',
+              fontSize: 14,
+              fontWeight: 600,
+              transition: 'all 0.2s'
+            }}
           >
             {/* Avoid server/client text mismatch by only showing the theme label after mount */}
-            {mounted ? (theme === 'dark' ? 'ライト' : 'ダーク') : ''}
+            {mounted ? (theme === 'dark' ? '☀️ ライト' : '🌙 ダーク') : ''}
           </button>
 
           <select className="lang-select" value={selectedLang} onChange={e => setSelectedLang(e.target.value)}>
@@ -279,92 +435,169 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
 
             <div className="drawer-section">
               {loggedInUser ? (
-                <div style={{ marginBottom: 8 }}>ログイン中: <strong>{loggedInUser}</strong></div>
-              ) : null}
-              {/* Auth forms */}
-              {!loggedInUser ? (
-                <div className="auth-box">
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                    <button onClick={() => setAuthMode('login')} className={authMode === 'login' ? 'tab active' : 'tab'}>ログイン</button>
-                    <button onClick={() => setAuthMode('register')} className={authMode === 'register' ? 'tab active' : 'tab'}>登録</button>
-                  </div>
-                  <input className="auth-input" placeholder="ユーザー名" value={authName} onChange={e => setAuthName(e.target.value)} />
-                  <input className="auth-input" placeholder="メールアドレス" value={authEmail} onChange={e => setAuthEmail(e.target.value)} />
-                  <input className="auth-input" placeholder="パスワード" type="password" value={authPass} onChange={e => setAuthPass(e.target.value)} />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                    <button onClick={async () => {
-                      if (!authName) return alert('ユーザー名を入力してください');
-                      if (!authEmail) return alert('メールアドレスを入力してください');
-                      if (!authPass) return alert('パスワードを入力してください');
+                <>
+                  <div style={{ marginBottom: 8 }}>ログイン中: <strong>{loggedInUser}</strong></div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="primary" onClick={async () => {
                       try {
-                        if (authMode === 'register') {
-                          const res = await fetch('/api/users', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            credentials: 'include',
-                            body: JSON.stringify({ user: { name: authName, email: authEmail, password: authPass, password_confirmation: authPass } })
-                          });
-                          if (!res.ok) {
-                            const j = await res.json();
-                            return alert('登録エラー: ' + (j.errors ? j.errors.join(', ') : res.statusText));
-                          }
-                          const j = await res.json();
-                          setLoggedInUser(j.user.name);
-                          setAuthName(''); setAuthEmail(''); setAuthPass('');
-                          setShowDrawer(false);
-                        } else {
-                          const res = await fetch('/api/sessions', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            credentials: 'include',
-                            body: JSON.stringify({ email: authEmail, password: authPass })
-                          });
-                          if (!res.ok) {
-                            const j = await res.json();
-                            return alert('ログイン失敗: ' + (j.error || res.statusText));
-                          }
-                          const j = await res.json();
-                          setLoggedInUser(j.user.name);
-                          setAuthName(''); setAuthEmail(''); setAuthPass('');
-                          setShowDrawer(false);
-                        }
-                      } catch (err: any) {
-                        alert('通信エラー: ' + err.message);
-                      }
-                    }} className="primary">{authMode === 'register' ? '登録' : 'ログイン'}</button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="primary" onClick={async () => {
-                    try {
-                      const res = await fetch('/api/sessions', { method: 'DELETE', credentials: 'include' });
-                      if (res.ok) {
+                        localStorage.removeItem('user');
+                        localStorage.removeItem('user_id');
                         setLoggedInUser(null);
                         alert('ログアウトしました');
-                      } else {
-                        alert('ログアウト失敗');
-                      }
-                    } catch (err: any) { alert('通信エラー: ' + err.message); }
-                  }}>ログアウト</button>
-                </div>
+                      } catch (err: any) { alert('エラー: ' + err.message); }
+                    }}>ログアウト</button>
+                  </div>
+                </>
+              ) : (
+                <button className="primary" onClick={() => {
+                  setShowDrawer(false);
+                  router.push('/setup');
+                }}>ログイン / 登録</button>
               )}
             </div>
 
             <div className="drawer-section">
-              <strong>カテゴリー選択</strong>
+              <strong>カテゴリ選択</strong>
               <div className="category-list">
                 {
                   (() => {
-                    const cats = Array.from(new Set(allArticles.map(a => a.category).filter(Boolean)));
-                    if (cats.length === 0) return <div style={{ color: '#666', marginTop: 8 }}>カテゴリーが登録されていません</div>;
+                    if (!tagList || tagList.length === 0) {
+                      return <div style={{ color: '#666', marginTop: 8 }}>カテゴリが登録されていません</div>;
+                    }
+                    const topParents = tagList.filter((t:any) => t.parent_id === null || t.parent_id === undefined);
+                    const childrenByParent: Record<string, any[]> = {};
+                    for (const t of tagList) {
+                      if (t.parent_id) {
+                        childrenByParent[String(t.parent_id)] = childrenByParent[String(t.parent_id)] || [];
+                        childrenByParent[String(t.parent_id)].push(t);
+                      }
+                    }
+                    
+                    const toggleCategory = (slug: string) => {
+                      const next = selectedCategories.includes(slug) 
+                        ? selectedCategories.filter(s => s !== slug) 
+                        : [...selectedCategories, slug];
+                      setSelectedCategories(next);
+                      try { 
+                        localStorage.setItem('selectedCategories', JSON.stringify(next)); 
+                      } catch (err) {}
+                    };
+
                     return (
-                      <TagDropdown
-                        groups={[{ label: 'Categories', options: cats.map((c:any)=>({ value: c, label: c })) }]}
-                        selected={selectedCategories}
-                        onChange={(next) => { setSelectedCategories(next); try { localStorage.setItem('selectedCategories', JSON.stringify(next)); } catch (err) {} }}
-                        placeholder="カテゴリーを選択"
-                      />
+                      <>
+                        <div style={{ 
+                          maxHeight: 300, 
+                          overflowY: 'auto', 
+                          marginTop: 8,
+                          border: '1px solid rgba(0,0,0,0.1)',
+                          borderRadius: 8,
+                          padding: 8
+                        }}>
+                          {topParents.map((parent:any) => {
+                            const children = childrenByParent[String(parent.id)] || [];
+                            return (
+                              <div key={parent.id} style={{ marginBottom: 12 }}>
+                                <div style={{ 
+                                  fontWeight: 700, 
+                                  fontSize: 13, 
+                                  marginBottom: 6,
+                                  color: 'var(--text-color-light)',
+                                  paddingLeft: 4
+                                }}>
+                                  {parent.name}
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                  {children.map((child:any) => {
+                                    const isSelected = selectedCategories.includes(child.slug);
+                                    const articleCount = categoryArticleCounts[child.slug] || 0;
+                                    return (
+                                    <label 
+                                      key={child.slug} 
+                                      style={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        gap: 8, 
+                                        cursor: 'pointer',
+                                        padding: '6px 8px',
+                                        borderRadius: 4,
+                                        transition: 'background 0.15s',
+                                        userSelect: 'none'
+                                      }}
+                                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.03)'}
+                                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                      <input 
+                                        type="checkbox" 
+                                        checked={isSelected}
+                                        onChange={() => toggleCategory(child.slug)}
+                                        style={{ width: 16, height: 16, cursor: 'pointer' }}
+                                      />
+                                      <span style={{ fontSize: 13, flex: 1 }}>{child.name}</span>
+                                      <span style={{ fontSize: 12, color: '#666', marginLeft: 4 }}>({articleCount})</span>
+                                    </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {loggedInUser && (
+                          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                            <button 
+                              className="primary" 
+                              style={{ flex: 1 }}
+                              onClick={async () => {
+                                if (selectedCategories.length === 0) {
+                                  return alert('少なくとも1つのカテゴリを選択してください');
+                                }
+                                const userId = localStorage.getItem('user_id');
+                                if (!userId) {
+                                  return alert('ユーザーIDが見つかりません');
+                                }
+                                try {
+                                  const res = await fetch('http://localhost:3001/api/user_categories', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ user_id: Number(userId), category_slugs: selectedCategories })
+                                  });
+                                  if (!res.ok) {
+                                    const text = await res.text();
+                                    throw new Error(text || res.statusText);
+                                  }
+                                  alert('カテゴリを保存しました！');
+                                } catch (err: any) {
+                                  alert('保存エラー: ' + (err.message || err));
+                                }
+                              }}
+                            >
+                              保存
+                            </button>
+                            <button 
+                              style={{ 
+                                flex: 1,
+                                padding: '8px 16px',
+                                borderRadius: 8,
+                                border: '1px solid rgba(0,0,0,0.1)',
+                                background: '#dc3545',
+                                color: '#fff',
+                                cursor: 'pointer',
+                                fontWeight: 600
+                              }}
+                              onClick={() => {
+                                if (confirm('すべてのカテゴリ選択をクリアしますか？')) {
+                                  setSelectedCategories([]);
+                                  try { 
+                                    localStorage.setItem('selectedCategories', JSON.stringify([])); 
+                                  } catch (err) {}
+                                }
+                              }}
+                            >
+                              クリア
+                            </button>
+                          </div>
+                        )}
+                      </>
                     );
                   })()
                 }
@@ -429,8 +662,15 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     return res.json();
   }
 
+  async function fetchTags(base: string) {
+    const res = await fetch(`${base}/api/tags`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json();
+  }
+
   try {
     let json: any = null;
+    let tagsJson: any = null;
     const errors: string[] = [];
     // First, try internal Next API (same origin) by constructing base from request headers
     const req = context.req as any;
@@ -443,6 +683,9 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       } catch (err) {
         // fallthrough to other candidates
       }
+      try {
+        tagsJson = await fetchTags(selfBase);
+      } catch (err) {}
     }
     if (!json) {
       for (const base of candidates) {
@@ -454,11 +697,20 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         }
       }
     }
+    if (!tagsJson) {
+      for (const base of candidates) {
+        try {
+          tagsJson = await fetchTags(base);
+          break;
+        } catch (err: any) {}
+      }
+    }
     if (!json) {
       throw new Error(errors.join(' ; '));
     }
     const articles = Array.isArray(json.articles) ? json.articles : [];
     const fallback = !!json.fallback;
+    const tagsProp = Array.isArray(tagsJson?.tags) ? tagsJson.tags : (Array.isArray(tagsJson) ? tagsJson : []);
     // Normalize articles: Next.js cannot serialize `undefined`, convert to `null`.
     const safeArticles = articles.map((a: any) => ({
       id: a.id ?? null,
@@ -471,7 +723,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
       source: a.source ?? null,
       lang: a.lang ?? null,
     }));
-    return { props: { articles: safeArticles, fallback } };
+    return { props: { articles: safeArticles, fallback, tags: tagsProp } };
   } catch (e: any) {
     // If we cannot reach any backend candidate, return a safe set of mock articles
     // so the frontend can be developed and inspected without the backend running.
@@ -499,6 +751,6 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
         lang: 'en',
       }
     ];
-    return { props: { articles: mockArticles, fallback: true, error: null } };
+    return { props: { articles: mockArticles, fallback: true, error: null, tags: [] } };
   }
 };

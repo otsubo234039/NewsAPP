@@ -22,6 +22,7 @@ class FeedsController < ApplicationController
           summary: a[:summary].to_s,
           published: (a[:published].respond_to?(:iso8601) ? a[:published].iso8601 : a[:published].to_s),
           source: a[:source].to_s,
+          category: a[:category].to_s,
           lang: (a[:lang] || 'und'),
           imageUrl: a[:imageUrl].to_s
         }

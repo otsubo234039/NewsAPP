@@ -18,8 +18,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const page = Math.max(1, parseInt((req.query.page as string) || '1', 10));
     const per_page = Math.min(100, Math.max(1, parseInt((req.query.per_page as string) || '20', 10)));
 
-    let filtered = all.slice();
+    // IT系カテゴリのみに強制フィルタリング
+    const itCategories = ['it', 'technology', 'tech', 'programming', 'software', 'hardware', 'ai', 'ml', 'security', 'cybersecurity'];
+    let filtered = all.filter(a => {
+      const cat = (a.category || '').toLowerCase();
+      return itCategories.includes(cat) || cat.includes('it') || cat.includes('tech');
+    });
 
+    // さらに category パラメータでフィルタリング
     if (category) {
       filtered = filtered.filter(a => (a.category || '').toLowerCase() === category.toLowerCase());
     }

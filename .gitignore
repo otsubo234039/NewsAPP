@@ -9,3 +9,4 @@ frontend/.next/
 frontend/package-lock.json
 docker-diagnostics/
 backups/
+ .env

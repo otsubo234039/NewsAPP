@@ -28,5 +28,10 @@ module App
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+    # Add cookie and session middleware so OmniAuth (and others) can use sessions
+    config.middleware.use ActionDispatch::Cookies
+    config.middleware.use ActionDispatch::Session::CookieStore, key: '_newsapp_session', same_site: :lax
+    # Ensure the session store is configured for API usage
+    config.session_store :cookie_store, key: '_newsapp_session', same_site: :lax
   end
 end

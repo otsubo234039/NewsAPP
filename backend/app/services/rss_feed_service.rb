@@ -64,7 +64,8 @@ class RssFeedService
                   link: (item.respond_to?(:link) ? item.link.to_s : (item.respond_to?(:links) ? item.links.first.to_s : '')),
                   summary: (item.respond_to?(:summary) && item.summary) || (item.respond_to?(:description) && item.description) || '',
                   published: (item.respond_to?(:pubDate) && item.pubDate) || (item.respond_to?(:published) && item.published) || nil,
-                  source: s['title']
+                  source: s['title'],
+                  category: category
                 }
                 # Try to extract an image URL from common locations: enclosure, media:content, or first <img> in summary/description
                 begin
