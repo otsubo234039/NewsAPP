@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import fs from 'fs/promises';
 import path from 'path';
 
-const TAGS_PATH = path.resolve(process.cwd(), 'frontend', 'data', 'tags-it-students.json');
+const TAGS_PATH = path.resolve(process.cwd(), 'data', 'tags-it-students.json');
 const BACKUP_PATH = path.resolve(process.cwd(), 'backups', 'articles-20251130-221004.json');
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

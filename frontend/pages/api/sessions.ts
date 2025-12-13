@@ -30,12 +30,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } catch (e) {}
     }
 
-    const { email, password } = req.body || {};
-    if (!email || !password) return res.status(400).json({ error: 'email and password required' });
+    const { username, password } = req.body || {};
+    if (!username || !password) return res.status(400).json({ error: 'username and password required' });
     const users = await readUsers();
-    const found = users.find((u:any)=>u.email === email && u.password === password);
+    const found = users.find((u:any)=>u.name === username && u.password === password);
     if (!found) return res.status(401).json({ error: 'invalid credentials' });
-    return res.status(200).json({ user: { id: found.id, name: found.name, email: found.email } });
+    return res.status(200).json({ user: { id: found.id, name: found.name } });
   }
   return res.status(405).end();
 }

@@ -11,12 +11,24 @@ type Props = { articles: Article[]; fallback?: boolean; categories?: string[]; t
 
 const SetupPage: React.FC<Props> = ({ articles = [], categories = [], tags = [], error = null }) => {
   const router = useRouter();
-  const [loggedInUser, setLoggedInUser] = useState<string | null>(() => {
-    try { return localStorage.getItem('user') || null; } catch (e) { return null; }
-  });
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
-    try { const v = localStorage.getItem('selectedCategories'); return v ? JSON.parse(v) : []; } catch (e) { return []; }
-  });
+  const [step, setStep] = useState<'auth'|'tags'>('auth');
+  const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    try {
+      const user = localStorage.getItem('user');
+      if (user) {
+        setLoggedInUser(user);
+        router.replace('/'); // ログイン済みならホームへ
+        return;
+      }
+      const cats = localStorage.getItem('selectedCategories');
+      if (cats) setSelectedCategories(JSON.parse(cats));
+    } catch (e) {}
+  }, [router]);
   const cats = (categories && categories.length > 0)
     ? categories
     : Array.from(new Set(articles.map(a => a.category).filter(Boolean)));
@@ -55,46 +67,61 @@ const SetupPage: React.FC<Props> = ({ articles = [], categories = [], tags = [],
     }
   }
 
-  const doRegisterOrLogin = async (mode: 'login'|'register', name?: string, email?: string, password?: string) => {
+  const doRegisterOrLogin = async (mode: 'login'|'register', username?: string, password?: string) => {
     // Simple client-side attempt to call backend endpoints; errors shown as alerts.
     try {
       if (mode === 'register') {
-        const res = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: { name, email, password, password_confirmation: password } }) });
+        const res = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: { name: username, password, password_confirmation: password } }) });
         if (!res.ok) { const j = await res.json().catch(()=>({})); return alert('登録失敗: ' + (j.errors ? j.errors.join(', ') : res.statusText)); }
-        const j = await res.json(); setLoggedInUser(j.user?.name || name || ''); localStorage.setItem('user', j.user?.name || (name||''));
+        const j = await res.json(); setLoggedInUser(j.user?.name || username || ''); localStorage.setItem('user', j.user?.name || (username||'')); if (j.user?.id) localStorage.setItem('user_id', String(j.user.id)); setStep('tags');
       } else {
-        const res = await fetch('/api/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }), credentials: 'include' });
+        const res = await fetch('/api/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }), credentials: 'include' });
         if (!res.ok) { const j = await res.json().catch(()=>({})); return alert('ログイン失敗: ' + (j.error || res.statusText)); }
-        const j = await res.json(); setLoggedInUser(j.user?.name || ''); localStorage.setItem('user', j.user?.name || '');
+        const j = await res.json(); setLoggedInUser(j.user?.name || ''); localStorage.setItem('user', j.user?.name || ''); if (j.user?.id) localStorage.setItem('user_id', String(j.user.id)); router.replace('/');
       }
     } catch (err: any) { alert('通信エラー: ' + (err.message || err)); }
+  }
+
+  const handleTagsSubmit = async () => {
+    if (!selectedCategories || selectedCategories.length === 0) return alert('少なくとも1つカテゴリを選択してください。');
+    try { localStorage.setItem('newsapp:setupComplete', '1'); } catch (e) {}
+    const userId = localStorage.getItem('user_id') || (router.query.oauth_user_id ? String(router.query.oauth_user_id) : null);
+    if (userId) {
+      try {
+        const res = await fetch('http://localhost:3001/api/user_categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: Number(userId), category_slugs: selectedCategories }) });
+        if (!res.ok) {
+          console.warn('user_categories save failed', await res.text());
+        }
+      } catch (err) { console.warn('failed to save user categories', err); }
+    }
+    router.replace('/');
+  }
+
+  // ログイン中でマウント前、またはリダイレクト中は何も表示しない
+  if (!mounted || loggedInUser) {
+    return null;
   }
 
   return (
     <div className="setup-page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div className="setup-card">
-        <h2>ようこそ — 初期設定</h2>
-        <p>このアプリを利用するには、まずログインまたは登録し、興味のあるタグを選択してください。</p>
+        {step === 'auth' ? (
+          <>
+            <h2>ようこそ — ログイン/登録</h2>
+            <p>まずはアカウントを作成またはログインしてください。</p>
 
-        {serverError ? (
-          <div style={{ background: '#ffecec', color: '#661010', padding: 10, borderRadius: 6, marginBottom: 12 }}>
-            <div>タグの読み込みに問題が発生しました: <strong>{serverError}</strong></div>
-            <div style={{ marginTop: 8 }}>
-              <button className="primary" onClick={() => fetchTagsClient()}>再試行</button>
-            </div>
-          </div>
-        ) : null}
+            {serverError ? (
+              <div style={{ background: '#ffecec', color: '#661010', padding: 10, borderRadius: 6, marginBottom: 12 }}>
+                <div>エラー: <strong>{serverError}</strong></div>
+              </div>
+            ) : null}
 
-        <div style={{ display: 'flex', gap: 20, marginTop: 12 }}>
-          <div style={{ flex: 1 }}>
-            <strong>ログイン / 登録</strong>
-            <p style={{ color: '#666' }}>既存アカウントでログインするか、新規登録してください。</p>
-            <div className="auth-box" style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="auth-box" style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 400 }}>
               {/* Login form */}
-              <form onSubmit={async (e) => { e.preventDefault(); const f = new FormData(e.currentTarget as HTMLFormElement); const email = String(f.get('login_email') || ''); const password = String(f.get('login_password') || ''); await doRegisterOrLogin('login', undefined, email, password); }}>
+              <form onSubmit={async (e) => { e.preventDefault(); const f = new FormData(e.currentTarget as HTMLFormElement); const username = String(f.get('login_username') || ''); const password = String(f.get('login_password') || ''); await doRegisterOrLogin('login', username, password); }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <label style={{ fontWeight: 600 }}>ログイン</label>
-                  <input name="login_email" type="email" placeholder="メールアドレス" className="auth-input" required />
+                  <input name="login_username" type="text" placeholder="ユーザー名" className="auth-input" required />
                   <input name="login_password" type="password" placeholder="パスワード" className="auth-input" required />
                   <div style={{ display: 'flex', justifyContent: 'flex-start', gap: 8 }}>
                     <button type="submit" className="primary">ログイン</button>
@@ -103,11 +130,10 @@ const SetupPage: React.FC<Props> = ({ articles = [], categories = [], tags = [],
               </form>
 
               {/* Register form */}
-              <form onSubmit={async (e) => { e.preventDefault(); const f = new FormData(e.currentTarget as HTMLFormElement); const name = String(f.get('reg_name') || ''); const email = String(f.get('reg_email') || ''); const password = String(f.get('reg_password') || ''); await doRegisterOrLogin('register', name, email, password); }}>
+              <form onSubmit={async (e) => { e.preventDefault(); const f = new FormData(e.currentTarget as HTMLFormElement); const username = String(f.get('reg_username') || ''); const password = String(f.get('reg_password') || ''); await doRegisterOrLogin('register', username, password); }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <label style={{ fontWeight: 600 }}>新規登録</label>
-                  <input name="reg_name" type="text" placeholder="ユーザー名" className="auth-input" required />
-                  <input name="reg_email" type="email" placeholder="メールアドレス" className="auth-input" required />
+                  <input name="reg_username" type="text" placeholder="ユーザー名" className="auth-input" required />
                   <input name="reg_password" type="password" placeholder="パスワード" className="auth-input" required />
                   <div style={{ display: 'flex', justifyContent: 'flex-start', gap: 8 }}>
                     <button type="submit" className="primary">登録</button>
@@ -117,33 +143,40 @@ const SetupPage: React.FC<Props> = ({ articles = [], categories = [], tags = [],
 
               {loggedInUser ? <div style={{ marginTop: 8 }}>ログイン中: <strong>{loggedInUser}</strong></div> : null}
             </div>
-          </div>
+          </>
+        ) : (
+          <>
+            <h2>興味のあるカテゴリを選択</h2>
+            <p>ユーザー: <strong>{loggedInUser}</strong></p>
 
-          <div style={{ flex: 1 }}>
-            <strong>タグ選択</strong>
-            <div style={{ marginTop: 8 }}>
+            {serverError ? (
+              <div style={{ background: '#ffecec', color: '#661010', padding: 10, borderRadius: 6, marginBottom: 12 }}>
+                <div>カテゴリの読み込みに問題が発生しました: <strong>{serverError}</strong></div>
+                <div style={{ marginTop: 8 }}>
+                  <button className="primary" onClick={() => fetchTagsClient()}>再試行</button>
+                </div>
+              </div>
+            ) : null}
+
+            <div style={{ marginTop: 12, maxWidth: 400 }}>
               {tagList.length === 0 ? (
-                <div style={{ color: '#666' }}>まだ利用可能なタグが見つかりません。後で設定できます。</div>
+                <div style={{ color: '#666' }}>まだ利用可能なカテゴリが見つかりません。後で設定できます。</div>
               ) : (
                 <TagDropdown
                   groups={topParents.map((parent:any) => ({ label: parent.name, options: (childrenByParent[String(parent.id)] || []).map((c:any) => ({ value: c.slug, label: c.name })) }))}
                   selected={selectedCategories}
                   onChange={(next) => setSelectedCategories(next)}
-                  placeholder="興味のあるタグを選択"
+                  placeholder="興味のあるカテゴリを選択"
                 />
               )}
             </div>
-          </div>
-        </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-          <button className="primary" onClick={() => {
-            if (!loggedInUser) return alert('まずログイン／登録してください。');
-            if (!selectedCategories || selectedCategories.length === 0) return alert('少なくとも1つタグを選択してください。');
-            try { localStorage.setItem('newsapp:setupComplete', '1'); } catch (e) {}
-            router.replace('/');
-          }}>設定を完了して開始</button>
-        </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <button onClick={() => setStep('auth')} style={{ padding: '8px 16px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}>戻る</button>
+              <button className="primary" onClick={handleTagsSubmit}>完了してホームへ</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -15,4 +15,12 @@ Rails.application.routes.draw do
     resource :sessions, only: [:create, :destroy]
     resources :tags, only: [:index]
   end
+  # OmniAuth routes (Google)
+  # OAuth start (redirects to provider) and callback endpoints
+  get '/auth/google_oauth2', to: 'api/omniauth_callbacks#start'
+  get '/auth/:provider/callback', to: 'api/omniauth_callbacks#callback'
+  get '/auth/failure', to: 'api/omniauth_callbacks#failure'
+  namespace :api do
+    resources :user_categories, only: [:create]
+  end
 end

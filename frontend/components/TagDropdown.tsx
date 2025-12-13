@@ -20,13 +20,14 @@ export default function TagDropdown({ groups, selected, onChange, placeholder = 
       if (!rootRef.current) return;
       if (!rootRef.current.contains(e.target as Node)) setOpen(false);
     }
-    document.addEventListener('click', onDoc);
-    return () => document.removeEventListener('click', onDoc);
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
   }, []);
 
   const toggle = () => setOpen(o => !o);
 
-  const onToggleOption = (value: string) => {
+  const onToggleOption = (e: React.ChangeEvent<HTMLInputElement>, value: string) => {
+    e.stopPropagation();
     const next = selected.includes(value) ? selected.filter(s => s !== value) : [...selected, value];
     onChange(next);
   };
@@ -49,8 +50,8 @@ export default function TagDropdown({ groups, selected, onChange, placeholder = 
               <div className="tag-group-label">{g.label}</div>
               <div className="tag-options">
                 {g.options.map(o => (
-                  <label key={o.value} className="tag-option">
-                    <input type="checkbox" checked={selected.includes(o.value)} onChange={() => onToggleOption(o.value)} />
+                  <label key={o.value} className="tag-option" onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" checked={selected.includes(o.value)} onChange={(e) => onToggleOption(e, o.value)} />
                     <span>{o.label}</span>
                   </label>
                 ))}
