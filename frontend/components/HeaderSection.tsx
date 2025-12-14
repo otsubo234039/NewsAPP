@@ -14,6 +14,8 @@ interface HeaderSectionProps {
   mounted: boolean;
   selectedLang: string;
   onLangChange: (lang: string) => void;
+  selectedCountry: 'japan' | 'world';
+  onCountryChange: (country: 'japan' | 'world') => void;
   onMenuClick: () => void;
 }
 
@@ -27,6 +29,8 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
   mounted,
   selectedLang,
   onLangChange,
+  selectedCountry,
+  onCountryChange,
   onMenuClick,
 }) => {
   return (
@@ -116,11 +120,41 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
           className="lang-select"
           value={selectedLang}
           onChange={(e) => onLangChange(e.target.value)}
+          style={{
+            padding: '8px 12px',
+            borderRadius: 8,
+            border: '1px solid rgba(0,0,0,0.1)',
+            background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#fff',
+            color: theme === 'dark' ? '#e6eef8' : '#07314a',
+            fontSize: 14,
+            cursor: 'pointer',
+            fontWeight: 600,
+          }}
         >
           <option value="">すべての言語</option>
           <option value="ja">日本語</option>
           <option value="en">English</option>
         </select>
+
+        <select
+          className="country-select"
+          value={selectedCountry}
+          onChange={(e) => onCountryChange(e.target.value as 'japan' | 'world')}
+          style={{
+            padding: '8px 12px',
+            borderRadius: 8,
+            border: '1px solid rgba(0,0,0,0.1)',
+            background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#fff',
+            color: theme === 'dark' ? '#e6eef8' : '#07314a',
+            fontSize: 14,
+            cursor: 'pointer',
+            fontWeight: 600,
+          }}
+        >
+          <option value="japan">日本のIT</option>
+          <option value="world">海外のIT</option>
+        </select>
+
         <button className="hamburger" aria-label="メニュー" onClick={onMenuClick}>
           ☰
         </button>

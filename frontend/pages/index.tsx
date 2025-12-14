@@ -110,6 +110,7 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
 
   const [allArticles, setAllArticles] = useState<Article[]>(initialArticles.map(cleanArticle));
   const [selectedLang, setSelectedLang] = useState<string>('');
+  const [selectedCountry, setSelectedCountry] = useState<'japan' | 'world'>('japan');
   const [showDrawer, setShowDrawer] = useState(false);
   const router = useRouter();
   const [loggedInUser, setLoggedInUser] = useState<string | null>(() => {
@@ -252,6 +253,24 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
       }
     } catch (e) {}
   }, [router]);
+
+  // Fetch articles when country changes
+  useEffect(() => {
+    const fetchArticlesByCountry = async () => {
+      try {
+        const res = await fetch(`/api/articles?category=${selectedCountry}`);
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        const json = await res.json();
+        if (json && json.articles) {
+          setAllArticles(json.articles.map(cleanArticle));
+          setCurrentPage(1);
+        }
+      } catch (e) {
+        console.error('Error fetching articles:', e);
+      }
+    };
+    fetchArticlesByCountry();
+  }, [selectedCountry]);
 
   const filteredArticles = allArticles.filter(article => {
     let matchesLang = true;
@@ -417,6 +436,25 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
             <option value="ja">日本語</option>
             <option value="en">English</option>
           </select>
+
+          <select 
+            value={selectedCountry} 
+            onChange={e => setSelectedCountry(e.target.value as 'japan' | 'world')}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 8,
+              border: '1px solid rgba(0,0,0,0.1)',
+              background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#fff',
+              color: theme === 'dark' ? '#e6eef8' : '#07314a',
+              fontSize: 14,
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            <option value="japan">日本のIT</option>
+            <option value="world">海外のIT</option>
+          </select>
+
           <button className="hamburger" aria-label="メニュー" onClick={() => setShowDrawer(true)}>☰</button>
         </div>
       </header>
@@ -656,8 +694,8 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     'http://localhost:3001',
   ].filter(Boolean) as string[];
 
-  async function fetchArticles(base: string) {
-    const res = await fetch(`${base}/api/articles?category=it`);
+  async function fetchArticles(base: string, country: 'japan' | 'world' = 'japan') {
+    const res = await fetch(`${base}/api/articles?category=${country}`);
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     return res.json();
   }
@@ -679,7 +717,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     const selfBase = host ? `${proto}://${host}` : null;
     if (selfBase) {
       try {
-        json = await fetchArticles(selfBase);
+        json = await fetchArticles(selfBase, 'japan');
       } catch (err) {
         // fallthrough to other candidates
       }
@@ -690,7 +728,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     if (!json) {
       for (const base of candidates) {
         try {
-          json = await fetchArticles(base);
+          json = await fetchArticles(base, 'japan');
           break;
         } catch (err: any) {
           errors.push(`${base}: ${err.message}`);
