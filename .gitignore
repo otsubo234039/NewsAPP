@@ -1,5 +1,6 @@
 node_modules/
 .env
+.env.production
 npm-debug.log
 dist/
 coverage/
@@ -9,3 +10,5 @@ frontend/.next/
 frontend/package-lock.json
 docker-diagnostics/
 backups/
+nginx/logs/*.log
+nginx/ssl/*.pem

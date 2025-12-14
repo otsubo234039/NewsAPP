@@ -1,0 +1,6 @@
+# SSL証明書ディレクトリ（Let's Encryptで生成後に配置）
+# このディレクトリには以下のファイルを配置してください：
+# - fullchain.pem
+# - privkey.pem
+
+# .gitkeepファイルでディレクトリを維持

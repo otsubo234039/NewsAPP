@@ -1,0 +1,105 @@
+# AWS CloudFormation Template (Optional)
+# EC2インスタンスを自動作成する場合に使用
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'NewsAPP EC2 Instance with Docker'
+
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t3.medium
+    AllowedValues:
+      - t3.small
+      - t3.medium
+      - t3.large
+
+Resources:
+  NewsAppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for NewsAPP
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS
+
+  NewsAppInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      ImageId: ami-0d52744d6551d851e  # Ubuntu 22.04 LTS (ap-northeast-1)
+      SecurityGroups:
+        - !Ref NewsAppSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 30
+            VolumeType: gp3
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -e
+          
+          # Update system
+          apt-get update
+          apt-get upgrade -y
+          
+          # Install Docker
+          apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+          apt-get update
+          apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+          
+          # Install Git
+          apt-get install -y git
+          
+          # Configure Docker
+          usermod -aG docker ubuntu
+          systemctl enable docker
+          systemctl start docker
+          
+          # Add swap memory
+          fallocate -l 2G /swapfile
+          chmod 600 /swapfile
+          mkswap /swapfile
+          swapon /swapfile
+          echo '/swapfile none swap sw 0 0' >> /etc/fstab
+          
+          echo "Instance setup complete!" > /home/ubuntu/setup-complete.txt
+
+      Tags:
+        - Key: Name
+          Value: NewsAPP-Server
+
+Outputs:
+  InstanceId:
+    Description: Instance ID
+    Value: !Ref NewsAppInstance
+  
+  PublicIP:
+    Description: Public IP address
+    Value: !GetAtt NewsAppInstance.PublicIp
+  
+  PublicDNS:
+    Description: Public DNS name
+    Value: !GetAtt NewsAppInstance.PublicDnsName

@@ -1,0 +1,33 @@
+FROM ruby:3.2
+
+# Install dependencies
+RUN apt-get update -qq && \
+    apt-get install -y nodejs postgresql-client && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/src/app
+
+# Install gems
+COPY Gemfile Gemfile.lock ./
+RUN bundle config set --local deployment 'true' && \
+    bundle config set --local without 'development test' && \
+    bundle install
+
+# Copy application code
+COPY . .
+
+# Precompile assets (if any)
+RUN if [ -f "config/environments/production.rb" ]; then \
+        RAILS_ENV=production bundle exec rails assets:precompile || true; \
+    fi
+
+# Create a non-root user
+RUN groupadd -r rails && useradd -r -g rails rails && \
+    chown -R rails:rails /usr/src/app
+
+USER rails
+
+EXPOSE 3000
+
+# Start the Rails server
+CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-e", "production"]
