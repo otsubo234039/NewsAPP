@@ -451,8 +451,8 @@ const HomeScreen: React.FC<Props> = ({ articles: initialArticles = [], fallback 
               fontWeight: 600,
             }}
           >
-            <option value="japan">日本のIT</option>
-            <option value="world">海外のIT</option>
+            <option value="japan">日本</option>
+            <option value="world">アメリカ</option>
           </select>
 
           <button className="hamburger" aria-label="メニュー" onClick={() => setShowDrawer(true)}>☰</button>
