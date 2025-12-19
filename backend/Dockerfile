@@ -18,8 +18,4 @@ RUN chmod +x bin/rails bin/rake
 
 EXPOSE 3000
 # Wait for DB TCP port, run migrations, ensure no stale PID, then start server
-CMD ["bash", "-lc", "bundle install || true; \
-    until (echo > /dev/tcp/${DATABASE_HOST:-db}/${DATABASE_PORT:-5432}) >/dev/null 2>&1; do echo 'waiting for db'; sleep 1; done; \
-    bin/rails db:create db:migrate || true; \
-    rm -f tmp/pids/server.pid; \
-    exec bin/rails server -b 0.0.0.0 -p 3000"]
+CMD ["sh", "-c", "bundle install || true && until (echo > /dev/tcp/${DATABASE_HOST:-db}/${DATABASE_PORT:-5432}) >/dev/null 2>&1; do echo 'waiting for db'; sleep 1; done && bundle exec rails db:create db:migrate || true && rm -f tmp/pids/server.pid && bundle exec rails server -b 0.0.0.0 -p 3000"]
