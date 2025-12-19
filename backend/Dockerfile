@@ -13,6 +13,9 @@ RUN gem install bundler && bundle config set --local path 'vendor/bundle' && bun
 
 COPY . ./
 
+# Ensure executable permissions
+RUN chmod +x bin/rails bin/rake
+
 EXPOSE 3000
 # Wait for DB TCP port, run migrations, ensure no stale PID, then start server
 CMD ["bash", "-lc", "bundle install || true; \
